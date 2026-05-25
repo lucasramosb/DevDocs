@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DevDocs.Api/DevDocs.Api.csproj" />
+    <Project Path="src/DevDocs.Application/DevDocs.Application.csproj" />
+    <Project Path="src/DevDocs.Domain/DevDocs.Domain.csproj" />
+    <Project Path="src/DevDocs.Infrastructure/DevDocs.Infrastructure.csproj" />
+    <Project Path="src/DevDocs.Worker/DevDocs.Worker.csproj" />
+  </Folder>
+</Solution>
