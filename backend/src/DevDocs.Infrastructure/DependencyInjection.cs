@@ -1,4 +1,5 @@
 using DevDocs.Application.Abstractions;
+using DevDocs.Infrastructure.GitHub;
 using DevDocs.Infrastructure.Persistence;
 using DevDocs.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,13 @@ public static class DependencyInjection
 
         services.AddScoped<IProjectRepository, ProjectRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        services.AddHttpClient<IGitHubRepositoryClient, GitHubRepositoryClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.github.com");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("DevDocs");
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+        });
 
         return services;
     }

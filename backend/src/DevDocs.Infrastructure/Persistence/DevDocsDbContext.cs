@@ -24,15 +24,30 @@ public class DevDocsDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(120);
 
-            builder.Property(project => project.RepositoryPath)
+            builder.Property(project => project.Owner)
+                .IsRequired()
+                .HasMaxLength(120);
+
+            builder.Property(project => project.RepositoryName)
+                .IsRequired()
+                .HasMaxLength(120);
+
+            builder.Property(project => project.GitHubUrl)
                 .IsRequired()
                 .HasMaxLength(500);
+
+            builder.Property(project => project.DefaultBranch)
+                .IsRequired()
+                .HasMaxLength(120);
 
             builder.Property(project => project.Description)
                 .HasMaxLength(1000);
 
             builder.Property(project => project.CreatedAt)
                 .IsRequired();
+
+            builder.HasIndex(project => project.GitHubUrl)
+                .IsUnique();
         });
     }
 }

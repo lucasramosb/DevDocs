@@ -6,7 +6,13 @@ public class Project
 
     public string Name { get; private set; } = string.Empty;
 
-    public string RepositoryPath { get; private set; } = string.Empty;
+    public string Owner { get; private set; } = string.Empty;
+
+    public string RepositoryName { get; private set; } = string.Empty;
+
+    public string GitHubUrl { get; private set; } = string.Empty;
+
+    public string DefaultBranch { get; private set; } = string.Empty;
 
     public string? Description { get; private set; }
 
@@ -14,14 +20,22 @@ public class Project
 
     private Project()
     {
-        
     }
 
-    public Project(string name, string repositoryPath, string? description = null)
+    public Project(
+        string name,
+        string owner,
+        string repositoryName,
+        string gitHubUrl,
+        string defaultBranch,
+        string? description)
     {
         Id = Guid.NewGuid();
         Name = name;
-        RepositoryPath = repositoryPath;
+        Owner = owner;
+        RepositoryName = repositoryName;
+        GitHubUrl = gitHubUrl;
+        DefaultBranch = defaultBranch;
         Description = description;
         CreatedAt = DateTime.UtcNow;
     }

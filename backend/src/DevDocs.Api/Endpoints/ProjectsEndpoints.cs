@@ -1,4 +1,5 @@
 using DevDocs.Application.Abstractions;
+using DevDocs.Application.GitHub;
 using DevDocs.Application.Projects.DTOs;
 using DevDocs.Domain.Projects;
 
@@ -9,18 +10,39 @@ public static class ProjectsEndpoints
     public static void MapProjectsEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/projects")
-        .WithTags("Projects");
+            .WithTags("Projects");
 
         group.MapPost("/", async (
             CreateProjectRequest request,
+            IGitHubRepositoryClient gitHubRepositoryClient,
             IProjectRepository projectRepository,
             IUnitOfWork unitOfWork,
             CancellationToken cancellationToken) =>
         {
+            if (!GitHubRepositoryUrl.TryParse(request.GitHubUrl, out var repositoryUrl) ||
+                repositoryUrl is null)
+            {
+    return Results.BadRequest("Informe uma URL válida de repositório do GitHub.");
+}
+
+            var repositoryInfo = await gitHubRepositoryClient.GetPublicRepositoryAsync(
+                repositoryUrl.Owner,
+                repositoryUrl.RepositoryName,
+                cancellationToken
+            );
+
+            if (repositoryInfo is null)
+            {
+                return Results.BadRequest("Repositório não encontrado ou não é público.");
+            }
+
             var project = new Project(
-                request.Name,
-                request.RepositoryPath,
-                request.Description
+                repositoryInfo.Name,
+                repositoryInfo.Owner,
+                repositoryInfo.Name,
+                repositoryInfo.HtmlUrl,
+                repositoryInfo.DefaultBranch,
+                repositoryInfo.Description
             );
 
             await projectRepository.AddAsync(project, cancellationToken);
@@ -29,13 +51,15 @@ public static class ProjectsEndpoints
             var response = new ProjectResponse(
                 project.Id,
                 project.Name,
-                project.RepositoryPath,
+                project.Owner,
+                project.RepositoryName,
+                project.GitHubUrl,
+                project.DefaultBranch,
                 project.Description,
                 project.CreatedAt
             );
-            
+
             return Results.Created($"/projects/{project.Id}", response);
-        
         });
 
         group.MapGet("/", async (
@@ -45,14 +69,17 @@ public static class ProjectsEndpoints
             var projects = await projectRepository.GetAllAsync(cancellationToken);
 
             var response = projects
-            .Select(project => new ProjectResponse(
-                project.Id,
-                project.Name,
-                project.RepositoryPath,
-                project.Description,
-                project.CreatedAt
-            ))
-            .ToList();
+                .Select(project => new ProjectResponse(
+                    project.Id,
+                    project.Name,
+                    project.Owner,
+                    project.RepositoryName,
+                    project.GitHubUrl,
+                    project.DefaultBranch,
+                    project.Description,
+                    project.CreatedAt
+                ))
+                .ToList();
 
             return Results.Ok(response);
         });
@@ -64,7 +91,7 @@ public static class ProjectsEndpoints
         {
             var project = await projectRepository.GetByIdAsync(id, cancellationToken);
 
-            if (project == null)
+            if (project is null)
             {
                 return Results.NotFound();
             }
@@ -72,7 +99,10 @@ public static class ProjectsEndpoints
             var response = new ProjectResponse(
                 project.Id,
                 project.Name,
-                project.RepositoryPath,
+                project.Owner,
+                project.RepositoryName,
+                project.GitHubUrl,
+                project.DefaultBranch,
                 project.Description,
                 project.CreatedAt
             );

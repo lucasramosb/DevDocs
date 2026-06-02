@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DevDocs.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(DevDocsDbContext))]
-    [Migration("20260526232208_InitialCreate")]
+    [Migration("20260602003701_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -29,8 +29,18 @@ namespace DevDocs.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DefaultBranch")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GitHubUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
@@ -38,12 +48,20 @@ namespace DevDocs.Infrastructure.Persistence.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("RepositoryPath")
+                    b.Property<string>("Owner")
                         .IsRequired()
-                        .HasMaxLength(500)
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RepositoryName")
+                        .IsRequired()
+                        .HasMaxLength(120)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GitHubUrl")
+                        .IsUnique();
 
                     b.ToTable("Projects", (string)null);
                 });
