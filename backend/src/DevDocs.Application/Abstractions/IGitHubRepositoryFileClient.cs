@@ -2,10 +2,11 @@ using DevDocs.Application.GitHub;
 
 namespace DevDocs.Application.Abstractions;
 
-public interface IGitHubRepositoryClient
+public interface IGitHubRepositoryFileClient
 {
-    Task<GitHubRepositoryInfo?> GetPublicRepositoryAsync(
+    Task<List<GitHubRepositoryFile>> GetRepositoryFilesAsync(
         string owner,
         string repositoryName,
+        string branch,
         CancellationToken cancellationToken);
 }

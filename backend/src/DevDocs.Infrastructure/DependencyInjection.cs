@@ -23,8 +23,16 @@ public static class DependencyInjection
 
         services.AddScoped<IProjectRepository, ProjectRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<ISourceFileRepository, SourceFileRepository>();
 
         services.AddHttpClient<IGitHubRepositoryClient, GitHubRepositoryClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.github.com");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("DevDocs");
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+        });
+
+        services.AddHttpClient<IGitHubRepositoryFileClient, GitHubRepositoryFileClient>(client =>
         {
             client.BaseAddress = new Uri("https://api.github.com");
             client.DefaultRequestHeaders.UserAgent.ParseAdd("DevDocs");

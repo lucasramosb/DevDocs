@@ -17,12 +17,12 @@ public sealed record GitHubRepositoryUrl(
 
         var normalizdInput = input.Trim();
 
-        if(!Uri.TryCreate(normalizdInput, UriKind.Absolute, out var uri))
+        if (!Uri.TryCreate(normalizdInput, UriKind.Absolute, out var uri))
         {
             return false;
         }
 
-        if (!string.Equals(uri.Host, "github.com",StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(uri.Host, "github.com", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
