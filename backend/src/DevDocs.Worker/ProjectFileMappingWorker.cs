@@ -39,6 +39,7 @@ public sealed class ProjectFileMappingWorker : BackgroundService
             {
                 await ProcessMessageAsync(
                     message.ProjectId,
+                    message.IndexingJobId,
                     scope.ServiceProvider,
                     stoppingToken
                 );
@@ -56,6 +57,7 @@ public sealed class ProjectFileMappingWorker : BackgroundService
 
     private async Task ProcessMessageAsync(
         Guid projectId,
+        Guid indexingJobId,
         IServiceProvider serviceProvider,
         CancellationToken cancellationToken)
     {
@@ -67,6 +69,9 @@ public sealed class ProjectFileMappingWorker : BackgroundService
 
         var gitHubRepositoryFileClient = serviceProvider
             .GetRequiredService<IGitHubRepositoryFileClient>();
+
+        var indexingJobRepository = serviceProvider
+            .GetRequiredService<IIndexingJobRepository>();
 
         var unitOfWork = serviceProvider
             .GetRequiredService<IUnitOfWork>();
@@ -86,12 +91,31 @@ public sealed class ProjectFileMappingWorker : BackgroundService
             return;
         }
 
+        var indexingJob = await indexingJobRepository.GetByIdAsync(
+            indexingJobId,
+            cancellationToken
+        );
+
+        if (indexingJob is null)
+        {
+            _logger.LogWarning(
+                "Indexing job {IndexingJobId} not found.",
+                indexingJobId
+            );
+
+            return;
+        }
+
         _logger.LogInformation(
             "Mapping files for project {ProjectId} - {Owner}/{RepositoryName}",
             project.Id,
             project.Owner,
             project.RepositoryName
         );
+
+        indexingJob.MarkAsRunning();
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         var githubFiles = await gitHubRepositoryFileClient.GetRepositoryFilesAsync(
             project.Owner,
@@ -155,6 +179,14 @@ public sealed class ProjectFileMappingWorker : BackgroundService
         await sourceFileRepository.AddRangeAsync(
             mappedFiles,
             cancellationToken
+        );
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        indexingJob.MarkAsCompleted(
+            githubFiles.Count,
+            mappedFiles.Count,
+            githubFiles.Count - mappedFiles.Count
         );
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

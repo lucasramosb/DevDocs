@@ -26,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<IProjectRepository, ProjectRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<ISourceFileRepository, SourceFileRepository>();
+        services.AddScoped<IIndexingJobRepository, IndexingJobRepository>();
 
         var redisConnectionString = configuration["Redis:ConnectionString"]
             ?? "localhost:6379";

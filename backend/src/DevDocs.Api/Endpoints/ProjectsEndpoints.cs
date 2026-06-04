@@ -1,10 +1,11 @@
 using DevDocs.Application.Abstractions;
 using DevDocs.Application.GitHub;
+using DevDocs.Application.IndexingJobs.DTOs;
 using DevDocs.Application.Projects.DTOs;
 using DevDocs.Application.Queue;
 using DevDocs.Application.SourceFiles.DTOs;
+using DevDocs.Domain.IndexingJobs;
 using DevDocs.Domain.Projects;
-using DevDocs.Domain.SourceFiles;
 
 namespace DevDocs.Api.Endpoints;
 
@@ -116,7 +117,9 @@ public static class ProjectsEndpoints
         group.MapPost("/{id:guid}/map-files", async (
             Guid id,
             IProjectRepository projectRepository,
+            IIndexingJobRepository indexingJobRepository,
             IProjectFileMappingQueue projectFileMappingQueue,
+            IUnitOfWork unitOfWork,
             CancellationToken cancellationToken) =>
         {
             var project = await projectRepository.GetByIdAsync(id, cancellationToken);
@@ -126,18 +129,28 @@ public static class ProjectsEndpoints
                 return Results.NotFound("Projeto não encontrado.");
             }
 
-            var message = new ProjectFileMappingMessage(project.Id);
+            var indexingJob = new IndexingJob(project.Id);
+
+            await indexingJobRepository.AddAsync(indexingJob, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var message = new ProjectFileMappingMessage(
+                project.Id,
+                indexingJob.Id
+            );
 
             await projectFileMappingQueue.EnqueueAsync(message, cancellationToken);
 
+            var response = new QueueIndexingJobResponse(
+                project.Id,
+                indexingJob.Id,
+                indexingJob.Status.ToString(),
+                "Mapeamento de arquivos enviado para processamento."
+            );
+
             return Results.Accepted(
-                $"/projects/{project.Id}/files",
-                new
-                {
-                    ProjectId = project.Id,
-                    Status = "queued",
-                    Message = "Mapeamento de arquivos enviado para processamento."
-                }
+                $"/projects/{project.Id}/indexing-jobs/{indexingJob.Id}",
+                response
             );
         });
 
@@ -231,6 +244,87 @@ public static class ProjectsEndpoints
                 sourceFile.Path,
                 sourceFile.Extension,
                 fileContent.Content
+            );
+
+            return Results.Ok(response);
+        });
+
+        group.MapGet("/{id:guid}/indexing-jobs", async (
+            Guid id,
+            IProjectRepository projectRepository,
+            IIndexingJobRepository indexingJobRepository,
+            CancellationToken cancellationToken) =>
+        {
+            var project = await projectRepository.GetByIdAsync(id, cancellationToken);
+
+            if (project is null)
+            {
+                return Results.NotFound("Projeto não encontrado.");
+            }
+
+            var indexingJobs = await indexingJobRepository.GetByProjectIdAsync(
+                project.Id,
+                cancellationToken
+            );
+
+            var response = indexingJobs
+                .Select(indexingJob => new IndexingJobResponse(
+                    indexingJob.Id,
+                    indexingJob.ProjectId,
+                    indexingJob.Status.ToString(),
+                    indexingJob.TotalFilesFound,
+                    indexingJob.TotalFilesMapped,
+                    indexingJob.TotalFilesIgnored,
+                    indexingJob.ErrorMessage,
+                    indexingJob.CreatedAt,
+                    indexingJob.StartedAt,
+                    indexingJob.FinishedAt
+                ))
+                .ToList();
+
+            return Results.Ok(response);
+        });
+
+        group.MapGet("/{projectId:guid}/indexing-jobs/{indexingJobId:guid}", async (
+            Guid projectId,
+            Guid indexingJobId,
+            IProjectRepository projectRepository,
+            IIndexingJobRepository indexingJobRepository,
+            CancellationToken cancellationToken) =>
+        {
+            var project = await projectRepository.GetByIdAsync(projectId, cancellationToken);
+
+            if (project is null)
+            {
+                return Results.NotFound("Projeto não encontrado.");
+            }
+
+            var indexingJob = await indexingJobRepository.GetByIdAsync(
+                indexingJobId,
+                cancellationToken
+            );
+
+            if (indexingJob is null)
+            {
+                return Results.NotFound("Job não encontrado.");
+            }
+
+            if (indexingJob.ProjectId != project.Id)
+            {
+                return Results.BadRequest("Job não pertence ao projeto informado.");
+            }
+
+            var response = new IndexingJobResponse(
+                indexingJob.Id,
+                indexingJob.ProjectId,
+                indexingJob.Status.ToString(),
+                indexingJob.TotalFilesFound,
+                indexingJob.TotalFilesMapped,
+                indexingJob.TotalFilesIgnored,
+                indexingJob.ErrorMessage,
+                indexingJob.CreatedAt,
+                indexingJob.StartedAt,
+                indexingJob.FinishedAt
             );
 
             return Results.Ok(response);

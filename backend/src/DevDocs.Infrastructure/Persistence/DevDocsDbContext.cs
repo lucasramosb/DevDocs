@@ -1,3 +1,4 @@
+using DevDocs.Domain.IndexingJobs;
 using DevDocs.Domain.Projects;
 using DevDocs.Domain.SourceFiles;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +15,8 @@ public class DevDocsDbContext : DbContext
     public DbSet<Project> Projects => Set<Project>();
 
     public DbSet<SourceFile> SourceFiles => Set<SourceFile>();
+
+    public DbSet<IndexingJob> IndexingJobs => Set<IndexingJob>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -99,6 +102,42 @@ public class DevDocsDbContext : DbContext
                 sourceFile.ProjectId,
                 sourceFile.Path
             }).IsUnique();
+        });
+
+        modelBuilder.Entity<IndexingJob>(builder =>
+        {
+            builder.ToTable("IndexingJobs");
+
+            builder.HasKey(indexingJob => indexingJob.Id);
+
+            builder.Property(indexingJob => indexingJob.ProjectId)
+                .IsRequired();
+
+            builder.Property(indexingJob => indexingJob.Status)
+                .HasConversion<string>()
+                .IsRequired()
+                .HasMaxLength(50);
+
+            builder.Property(indexingJob => indexingJob.TotalFilesFound)
+                .IsRequired();
+
+            builder.Property(indexingJob => indexingJob.TotalFilesMapped)
+                .IsRequired();
+
+            builder.Property(indexingJob => indexingJob.TotalFilesIgnored)
+                .IsRequired();
+
+            builder.Property(indexingJob => indexingJob.ErrorMessage)
+                .HasMaxLength(2000);
+
+            builder.Property(indexingJob => indexingJob.CreatedAt)
+                .IsRequired();
+
+            builder.Property(indexingJob => indexingJob.StartedAt);
+
+            builder.Property(indexingJob => indexingJob.FinishedAt);
+
+            builder.HasIndex(indexingJob => indexingJob.ProjectId);
         });
     }
 }
