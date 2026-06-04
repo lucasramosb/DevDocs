@@ -40,4 +40,13 @@ public class SourceFileRepository : ISourceFileRepository
 
         _dbContext.SourceFiles.RemoveRange(sourceFiles);
     }
+
+    public async Task<SourceFile?> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken
+    )
+    {
+        return await _dbContext.SourceFiles
+        .FirstOrDefaultAsync(SourceFile => SourceFile.Id == id, cancellationToken);
+    }
 }

@@ -142,7 +142,14 @@ public static class ProjectsEndpoints
             ".md",
             ".json",
             ".yml",
-            ".yaml"
+            ".yaml",
+            ".ts",
+            ".tsx",
+            ".js",
+            ".jsx",
+            ".css",
+            ".json",
+            ".md"
         };
 
         var mappedFiles = githubFiles
@@ -219,6 +226,66 @@ public static class ProjectsEndpoints
                     sourceFile.CreatedAt
                 ))
                 .ToList();
+
+            return Results.Ok(response);
+        });
+
+        group.MapGet("/{projectId:guid}/files/{sourceFileId:guid}/content", async (
+            Guid projectId,
+            Guid sourceFileId,
+            IProjectRepository projectRepository,
+            ISourceFileRepository sourceFileRepository,
+            IGitHubFileContentClient gitHubFileContentClient,
+            CancellationToken cancellationToken) =>
+        {
+            var project = await projectRepository.GetByIdAsync(projectId, cancellationToken);
+
+            if (project is null)
+            {
+                return Results.NotFound("Projeto não encontrado.");
+            }
+
+            var sourceFile = await sourceFileRepository.GetByIdAsync(
+                sourceFileId,
+                cancellationToken
+            );
+
+            if (sourceFile is null)
+            {
+                return Results.NotFound("Arquivo não encontrado.");
+            }
+
+            if (sourceFile.ProjectId != project.Id)
+            {
+                return Results.BadRequest("Arquivo não pertence ao projeto informado.");
+            }
+
+            const long maxAllowedFileSizeInBytes = 200_000;
+
+            if (sourceFile.Size > maxAllowedFileSizeInBytes)
+            {
+                return Results.BadRequest("Arquivo muito grande para leitura nesta versão.");
+            }
+
+            var fileContent = await gitHubFileContentClient.GetFileContentAsync(
+                project.Owner,
+                project.RepositoryName,
+                sourceFile.GitHubSha,
+                cancellationToken
+            );
+
+            if (fileContent is null)
+            {
+                return Results.BadRequest("Não foi possível ler o conteúdo do arquivo no GitHub.");
+            }
+
+            var response = new SourceFileContentResponse(
+                sourceFile.Id,
+                project.Id,
+                sourceFile.Path,
+                sourceFile.Extension,
+                fileContent.Content
+            );
 
             return Results.Ok(response);
         });

@@ -39,6 +39,13 @@ public static class DependencyInjection
             client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         });
 
+        services.AddHttpClient<IGitHubFileContentClient, GitHubFileContentClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.github.com");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("DevDocs");
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+        });
+
         return services;
     }
 }

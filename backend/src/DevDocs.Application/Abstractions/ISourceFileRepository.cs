@@ -15,4 +15,9 @@ public interface ISourceFileRepository
     Task DeleteByProjectIdAsync(
         Guid projectId,
         CancellationToken cancellationToken);
+
+    Task<SourceFile?> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken
+    );
 }
