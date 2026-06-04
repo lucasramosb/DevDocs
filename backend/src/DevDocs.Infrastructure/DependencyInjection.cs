@@ -2,9 +2,11 @@ using DevDocs.Application.Abstractions;
 using DevDocs.Infrastructure.GitHub;
 using DevDocs.Infrastructure.Persistence;
 using DevDocs.Infrastructure.Persistence.Repositories;
+using DevDocs.Infrastructure.Queue;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
 
 namespace DevDocs.Infrastructure;
 
@@ -24,6 +26,16 @@ public static class DependencyInjection
         services.AddScoped<IProjectRepository, ProjectRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<ISourceFileRepository, SourceFileRepository>();
+
+        var redisConnectionString = configuration["Redis:ConnectionString"]
+            ?? "localhost:6379";
+
+        services.AddSingleton<IConnectionMultiplexer>(_ =>
+        {
+            return ConnectionMultiplexer.Connect(redisConnectionString);
+        });
+
+        services.AddScoped<IProjectFileMappingQueue, RedisProjectFileMappingQueue>();
 
         services.AddHttpClient<IGitHubRepositoryClient, GitHubRepositoryClient>(client =>
         {

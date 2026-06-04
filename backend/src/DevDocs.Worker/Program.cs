@@ -1,7 +1,12 @@
+using DevDocs.Infrastructure;
 using DevDocs.Worker;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddHostedService<Worker>();
+
+builder.Services.AddInfrastructure(builder.Configuration);
+
+builder.Services.AddHostedService<ProjectFileMappingWorker>();
 
 var host = builder.Build();
+
 host.Run();

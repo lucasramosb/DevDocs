@@ -1,6 +1,7 @@
 using DevDocs.Application.Abstractions;
 using DevDocs.Application.GitHub;
 using DevDocs.Application.Projects.DTOs;
+using DevDocs.Application.Queue;
 using DevDocs.Application.SourceFiles.DTOs;
 using DevDocs.Domain.Projects;
 using DevDocs.Domain.SourceFiles;
@@ -113,87 +114,32 @@ public static class ProjectsEndpoints
         });
 
         group.MapPost("/{id:guid}/map-files", async (
-        Guid id,
-        IProjectRepository projectRepository,
-        ISourceFileRepository sourceFileRepository,
-        IGitHubRepositoryFileClient gitHubRepositoryFileClient,
-        IUnitOfWork unitOfWork,
-        CancellationToken cancellationToken) =>
-    {
-        var project = await projectRepository.GetByIdAsync(id, cancellationToken);
-
-        if (project is null)
+            Guid id,
+            IProjectRepository projectRepository,
+            IProjectFileMappingQueue projectFileMappingQueue,
+            CancellationToken cancellationToken) =>
         {
-            return Results.NotFound("Projeto não encontrado.");
-        }
+            var project = await projectRepository.GetByIdAsync(id, cancellationToken);
 
-        var githubFiles = await gitHubRepositoryFileClient.GetRepositoryFilesAsync(
-            project.Owner,
-            project.RepositoryName,
-            project.DefaultBranch,
-            cancellationToken
-        );
-
-        var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ".cs",
-            ".csproj",
-            ".sln",
-            ".md",
-            ".json",
-            ".yml",
-            ".yaml",
-            ".ts",
-            ".tsx",
-            ".js",
-            ".jsx",
-            ".css",
-            ".json",
-            ".md"
-        };
-
-        var mappedFiles = githubFiles
-            .Where(file => allowedExtensions.Contains(Path.GetExtension(file.Path)))
-            .Select(file =>
+            if (project is null)
             {
-                var extension = Path.GetExtension(file.Path);
-                var name = Path.GetFileName(file.Path);
+                return Results.NotFound("Projeto não encontrado.");
+            }
 
-                var isDocumentationFile =
-                    extension.Equals(".md", StringComparison.OrdinalIgnoreCase) ||
-                    file.Path.StartsWith("docs/", StringComparison.OrdinalIgnoreCase);
+            var message = new ProjectFileMappingMessage(project.Id);
 
-                var isTestFile =
-                    file.Path.Contains("test", StringComparison.OrdinalIgnoreCase) ||
-                    file.Path.Contains("tests", StringComparison.OrdinalIgnoreCase);
+            await projectFileMappingQueue.EnqueueAsync(message, cancellationToken);
 
-                return new SourceFile(
-                    project.Id,
-                    file.Path,
-                    name,
-                    extension,
-                    file.Sha,
-                    file.GitHubBlobUrl,
-                    file.Size,
-                    isDocumentationFile,
-                    isTestFile
-                );
-            })
-            .ToList();
-
-        await sourceFileRepository.DeleteByProjectIdAsync(project.Id, cancellationToken);
-        await sourceFileRepository.AddRangeAsync(mappedFiles, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        var response = new MapProjectFilesResponse(
-            project.Id,
-            githubFiles.Count,
-            mappedFiles.Count,
-            githubFiles.Count - mappedFiles.Count
-        );
-
-        return Results.Ok(response);
-    });
+            return Results.Accepted(
+                $"/projects/{project.Id}/files",
+                new
+                {
+                    ProjectId = project.Id,
+                    Status = "queued",
+                    Message = "Mapeamento de arquivos enviado para processamento."
+                }
+            );
+        });
 
         group.MapGet("/{id:guid}/files", async (
             Guid id,
