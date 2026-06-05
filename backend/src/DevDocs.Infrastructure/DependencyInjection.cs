@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
+using DevDocs.Infrastructure.Documentation;
 
 namespace DevDocs.Infrastructure;
 
@@ -27,6 +28,8 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<ISourceFileRepository, SourceFileRepository>();
         services.AddScoped<IIndexingJobRepository, IndexingJobRepository>();
+        services.AddScoped<IFileDocumentationRepository, FileDocumentationRepository>();
+        services.AddScoped<IFileDocumentationGenerator, SimpleFileDocumentationGenerator>();
 
         var redisConnectionString = configuration["Redis:ConnectionString"]
             ?? "localhost:6379";

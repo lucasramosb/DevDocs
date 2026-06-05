@@ -1,3 +1,4 @@
+using DevDocs.Domain.FileDocumentations;
 using DevDocs.Domain.IndexingJobs;
 using DevDocs.Domain.Projects;
 using DevDocs.Domain.SourceFiles;
@@ -17,6 +18,8 @@ public class DevDocsDbContext : DbContext
     public DbSet<SourceFile> SourceFiles => Set<SourceFile>();
 
     public DbSet<IndexingJob> IndexingJobs => Set<IndexingJob>();
+
+    public DbSet<FileDocumentation> FileDocumentations => Set<FileDocumentation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -138,6 +141,38 @@ public class DevDocsDbContext : DbContext
             builder.Property(indexingJob => indexingJob.FinishedAt);
 
             builder.HasIndex(indexingJob => indexingJob.ProjectId);
+        });
+
+        modelBuilder.Entity<FileDocumentation>(builder =>
+        {
+            builder.ToTable("FileDocumentations");
+
+            builder.HasKey(documentation => documentation.Id);
+
+            builder.Property(documentation => documentation.ProjectId)
+                .IsRequired();
+
+            builder.Property(documentation => documentation.SourceFileId)
+                .IsRequired();
+
+            builder.Property(documentation => documentation.Summary)
+                .IsRequired()
+                .HasMaxLength(1000);
+
+            builder.Property(documentation => documentation.Content)
+                .IsRequired();
+
+            builder.Property(documentation => documentation.Generator)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            builder.Property(documentation => documentation.CreatedAt)
+                .IsRequired();
+
+            builder.HasIndex(documentation => documentation.SourceFileId)
+                .IsUnique();
+
+            builder.HasIndex(documentation => documentation.ProjectId);
         });
     }
 }

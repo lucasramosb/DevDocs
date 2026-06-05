@@ -1,9 +1,11 @@
 using DevDocs.Application.Abstractions;
+using DevDocs.Application.FileDocumentations.DTOs;
 using DevDocs.Application.GitHub;
 using DevDocs.Application.IndexingJobs.DTOs;
 using DevDocs.Application.Projects.DTOs;
 using DevDocs.Application.Queue;
 using DevDocs.Application.SourceFiles.DTOs;
+using DevDocs.Domain.FileDocumentations;
 using DevDocs.Domain.IndexingJobs;
 using DevDocs.Domain.Projects;
 
@@ -325,6 +327,146 @@ public static class ProjectsEndpoints
                 indexingJob.CreatedAt,
                 indexingJob.StartedAt,
                 indexingJob.FinishedAt
+            );
+
+            return Results.Ok(response);
+        });
+
+        group.MapPost("/{projectId:guid}/files/{sourceFileId:guid}/documentation", async (
+            Guid projectId,
+            Guid sourceFileId,
+            IProjectRepository projectRepository,
+            ISourceFileRepository sourceFileRepository,
+            IFileDocumentationRepository fileDocumentationRepository,
+            IFileDocumentationGenerator fileDocumentationGenerator,
+            IGitHubFileContentClient gitHubFileContentClient,
+            IUnitOfWork unitOfWork,
+            CancellationToken cancellationToken) =>
+        {
+            var project = await projectRepository.GetByIdAsync(projectId, cancellationToken);
+
+            if (project is null)
+            {
+                return Results.NotFound("Projeto não encontrado.");
+            }
+
+            var sourceFile = await sourceFileRepository.GetByIdAsync(
+                sourceFileId,
+                cancellationToken
+            );
+
+            if (sourceFile is null)
+            {
+                return Results.NotFound("Arquivo não encontrado.");
+            }
+
+            if (sourceFile.ProjectId != project.Id)
+            {
+                return Results.BadRequest("Arquivo não pertence ao projeto informado.");
+            }
+
+            const long maxAllowedFileSizeInBytes = 200_000;
+
+            if (sourceFile.Size > maxAllowedFileSizeInBytes)
+            {
+                return Results.BadRequest("Arquivo muito grande para documentação nesta versão.");
+            }
+
+            var fileContent = await gitHubFileContentClient.GetFileContentAsync(
+                project.Owner,
+                project.RepositoryName,
+                sourceFile.GitHubSha,
+                cancellationToken
+            );
+
+            if (fileContent is null)
+            {
+                return Results.BadRequest("Não foi possível ler o conteúdo do arquivo no GitHub.");
+            }
+
+            var generatedDocumentation = fileDocumentationGenerator.Generate(
+                sourceFile.Path,
+                sourceFile.Extension,
+                fileContent.Content
+            );
+
+            await fileDocumentationRepository.DeleteBySourceFileIdAsync(
+                sourceFile.Id,
+                cancellationToken
+            );
+
+            var documentation = new FileDocumentation(
+                sourceFile.Id,
+                project.Id,
+                generatedDocumentation.Summary,
+                generatedDocumentation.Content,
+                generatedDocumentation.Generator
+            );
+
+            await fileDocumentationRepository.AddAsync(documentation, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var response = new FileDocumentationResponse(
+                documentation.Id,
+                documentation.ProjectId,
+                documentation.SourceFileId,
+                documentation.Summary,
+                documentation.Content,
+                documentation.Generator,
+                documentation.CreatedAt
+            );
+
+            return Results.Ok(response);
+        });
+
+        group.MapGet("/{projectId:guid}/files/{sourceFileId:guid}/documentation", async (
+            Guid projectId,
+            Guid sourceFileId,
+            IProjectRepository projectRepository,
+            ISourceFileRepository sourceFileRepository,
+            IFileDocumentationRepository fileDocumentationRepository,
+            CancellationToken cancellationToken) =>
+        {
+            var project = await projectRepository.GetByIdAsync(projectId, cancellationToken);
+
+            if (project is null)
+            {
+                return Results.NotFound("Projeto não encontrado.");
+            }
+
+            var sourceFile = await sourceFileRepository.GetByIdAsync(
+                sourceFileId,
+                cancellationToken
+            );
+
+            if (sourceFile is null)
+            {
+                return Results.NotFound("Arquivo não encontrado.");
+            }
+
+            if (sourceFile.ProjectId != project.Id)
+            {
+                return Results.BadRequest("Arquivo não pertence ao projeto informado.");
+            }
+
+            var documentation = await fileDocumentationRepository.GetBySourceFileIdAsync(
+                sourceFile.Id,
+                cancellationToken
+            );
+
+            if (documentation is null)
+            {
+                return Results.NotFound("Documentação ainda não foi gerada para este arquivo.");
+            }
+
+            var response = new FileDocumentationResponse(
+                documentation.Id,
+                documentation.ProjectId,
+                documentation.SourceFileId,
+                documentation.Summary,
+                documentation.Content,
+                documentation.Generator,
+                documentation.CreatedAt
             );
 
             return Results.Ok(response);
