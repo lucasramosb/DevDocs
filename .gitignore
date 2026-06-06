@@ -65,8 +65,11 @@ temp/
 *.tmp
 *.bak
 *.swp
+*.tsbuildinfo
 
 node_modules/
+.turbo/
+.yarn/
 dist/
 build/
 .next/
