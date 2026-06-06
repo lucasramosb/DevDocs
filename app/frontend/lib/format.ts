@@ -17,11 +17,11 @@ export function formatBytes(bytes: number) {
     return "0 B";
   }
 
-  const units = ["B", "KB", "MB", "GB"];
-  const size = Math.floor(Math.log(bytes) / Math.log(1024));
-  const value = bytes / Math.pow(1024, size);
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  const index = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  const value = bytes / Math.pow(1024, index);
 
-  return `${value.toFixed(value >= 10 || size === 0 ? 0 : 1)} ${units[size]}`;
+  return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
 export function compactPath(path: string, maxLength = 54) {
