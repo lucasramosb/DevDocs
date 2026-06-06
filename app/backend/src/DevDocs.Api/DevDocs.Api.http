@@ -1,6 +1,6 @@
 @DevDocs.Api_HostAddress = http://localhost:5150
 
-GET {{DevDocs.Api_HostAddress}}/weatherforecast/
+GET {{DevDocs.Api_HostAddress}}/projects/
 Accept: application/json
 
 ###

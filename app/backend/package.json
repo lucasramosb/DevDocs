@@ -1,0 +1,11 @@
+{
+  "name": "@devdocs/backend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "sh -c 'dotnet watch --project src/DevDocs.Api/DevDocs.Api.csproj run & dotnet watch --project src/DevDocs.Worker/DevDocs.Worker.csproj run & wait'",
+    "dev:worker": "dotnet watch --project src/DevDocs.Worker/DevDocs.Worker.csproj run",
+    "build": "dotnet build DevDocs.slnx --no-restore -v:minimal /p:UseSharedCompilation=false /m:1",
+    "restore": "dotnet restore DevDocs.slnx"
+  }
+}

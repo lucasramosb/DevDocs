@@ -1,4 +1,5 @@
 using DevDocs.Application.Abstractions;
+using DevDocs.Infrastructure.Documentation;
 using DevDocs.Infrastructure.GitHub;
 using DevDocs.Infrastructure.Persistence;
 using DevDocs.Infrastructure.Persistence.Repositories;
@@ -7,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
-using DevDocs.Infrastructure.Documentation;
 
 namespace DevDocs.Infrastructure;
 
@@ -34,10 +34,17 @@ public static class DependencyInjection
         var redisConnectionString = configuration["Redis:ConnectionString"]
             ?? "localhost:6379";
 
-        services.AddSingleton<IConnectionMultiplexer>(_ =>
-        {
-            return ConnectionMultiplexer.Connect(redisConnectionString);
-        });
+        services.AddSingleton(_ =>
+            new Lazy<Task<IConnectionMultiplexer>>(async () =>
+            {
+                var options = ConfigurationOptions.Parse(redisConnectionString);
+
+                options.AbortOnConnectFail = false;
+                options.ConnectRetry = 1;
+                options.ConnectTimeout = 1000;
+
+                return await ConnectionMultiplexer.ConnectAsync(options);
+            }));
 
         services.AddScoped<IProjectFileMappingQueue, RedisProjectFileMappingQueue>();
 

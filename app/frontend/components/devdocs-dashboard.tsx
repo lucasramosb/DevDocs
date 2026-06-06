@@ -118,11 +118,11 @@ export function DevDocsDashboard() {
 
   if (phase === "idle") {
     return (
-      <main className="relative grid min-h-screen place-items-center overflow-hidden px-4">
+      <main className="relative grid min-h-screen place-items-center overflow-hidden px-4 py-8">
         <TechBackground />
         <section className="relative z-10 w-full max-w-3xl">
           <div className="mb-6 flex items-center justify-center gap-3">
-            <div className="grid size-11 place-items-center rounded-lg border border-primary/35 bg-primary/15 text-primary shadow-[0_0_36px_rgba(20,184,166,0.24)]">
+            <div className="grid size-12 place-items-center rounded-2xl border border-primary/35 bg-primary/15 text-primary shadow-[0_0_44px_rgba(45,212,191,0.32)] backdrop-blur-xl">
               <BookOpenText className="size-5" />
             </div>
             <h1 className="text-2xl font-semibold tracking-normal text-foreground">
@@ -132,14 +132,14 @@ export function DevDocsDashboard() {
 
           <form
             onSubmit={handleAnalyze}
-            className="flex w-full flex-col gap-3 rounded-lg border border-white/10 bg-card/88 p-2 shadow-2xl shadow-black/30 backdrop-blur md:flex-row"
+            className="flex w-full flex-col gap-3 rounded-[2rem] border border-white/15 bg-card/70 p-2.5 shadow-2xl shadow-cyan-950/40 backdrop-blur-2xl md:flex-row"
           >
             <div className="relative flex-1">
-              <FolderGit2 className="pointer-events-none absolute left-4 top-3.5 size-5 text-primary" />
+              <FolderGit2 className="pointer-events-none absolute left-5 top-3.5 size-5 text-primary" />
               <Input
                 value={githubUrl}
                 onChange={(event) => setGithubUrl(event.target.value)}
-                className="h-12 border-transparent bg-background/80 pl-12 font-mono text-sm shadow-none focus-visible:ring-primary"
+                className="h-12 border-transparent bg-background/70 pl-14 font-mono text-sm shadow-none focus-visible:ring-primary"
                 placeholder="https://github.com/owner/repository"
                 type="url"
               />
@@ -151,7 +151,7 @@ export function DevDocsDashboard() {
           </form>
 
           {error ? (
-            <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <div className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive shadow-lg shadow-destructive/10 backdrop-blur-xl">
               {error}
             </div>
           ) : null}
@@ -162,11 +162,11 @@ export function DevDocsDashboard() {
 
   if (phase === "analyzing" || !documentation || !project) {
     return (
-      <main className="relative grid min-h-screen place-items-center overflow-hidden px-4">
+      <main className="relative grid min-h-screen place-items-center overflow-hidden px-4 py-8">
         <TechBackground />
-        <section className="relative z-10 w-full max-w-xl rounded-lg border border-white/10 bg-card/90 p-6 shadow-2xl shadow-black/30">
+        <section className="relative z-10 w-full max-w-xl rounded-[2rem] border border-white/15 bg-card/70 p-6 shadow-2xl shadow-cyan-950/40 backdrop-blur-2xl">
           <div className="flex items-center gap-3">
-            <div className="grid size-10 place-items-center rounded-md bg-primary/15 text-primary">
+            <div className="grid size-11 place-items-center rounded-2xl border border-primary/25 bg-primary/15 text-primary shadow-[0_0_28px_rgba(45,212,191,0.22)]">
               <Loader2 className="size-5 animate-spin" />
             </div>
             <div>
@@ -193,10 +193,10 @@ export function DevDocsDashboard() {
     <main className="relative min-h-screen overflow-hidden px-4 py-5 sm:px-6 lg:px-8">
       <TechBackground />
       <div className="relative z-10 mx-auto flex w-full max-w-[1480px] flex-col gap-5">
-        <header className="flex flex-col gap-4 border-b border-white/10 pb-4 md:flex-row md:items-center md:justify-between">
+        <header className="rounded-[2rem] border border-white/10 bg-card/60 p-4 shadow-2xl shadow-cyan-950/30 backdrop-blur-2xl md:flex md:items-center md:justify-between md:gap-5">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="grid size-9 place-items-center rounded-md border border-primary/30 bg-primary/15 text-primary">
+              <div className="grid size-10 place-items-center rounded-2xl border border-primary/30 bg-primary/15 text-primary shadow-[0_0_28px_rgba(45,212,191,0.22)]">
                 <BookOpenText className="size-4" />
               </div>
               <h1 className="truncate text-xl font-semibold">{project.name}</h1>
@@ -209,13 +209,13 @@ export function DevDocsDashboard() {
             </p>
           </div>
 
-          <form onSubmit={handleAnalyze} className="flex w-full gap-2 md:max-w-xl">
+          <form onSubmit={handleAnalyze} className="mt-4 flex w-full gap-2 md:mt-0 md:max-w-xl">
             <div className="relative flex-1">
-              <FolderGit2 className="pointer-events-none absolute left-3 top-2.5 size-4 text-primary" />
+              <FolderGit2 className="pointer-events-none absolute left-4 top-3 size-4 text-primary" />
               <Input
                 value={githubUrl}
                 onChange={(event) => setGithubUrl(event.target.value)}
-                className="pl-9 font-mono"
+                className="pl-10 font-mono"
                 placeholder="https://github.com/owner/repository"
                 type="url"
               />
@@ -228,8 +228,8 @@ export function DevDocsDashboard() {
         </header>
 
         <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <article className="min-w-0 rounded-lg border border-white/10 bg-card/92 shadow-2xl shadow-black/20">
-            <div className="border-b border-white/10 p-5">
+          <article className="min-w-0 overflow-hidden rounded-[2rem] border border-white/10 bg-card/70 shadow-2xl shadow-cyan-950/30 backdrop-blur-2xl">
+            <div className="border-b border-white/10 bg-white/[0.03] p-5">
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <Badge variant="info">
                   <Radar className="mr-1 size-3" />
@@ -258,7 +258,7 @@ export function DevDocsDashboard() {
                     {documentation.layers.map((layer) => (
                       <div
                         key={layer.name}
-                        className="flex items-center justify-between rounded-md border border-white/10 bg-background/70 px-3 py-2"
+                        className="flex items-center justify-between rounded-2xl border border-white/10 bg-background/60 px-3 py-2 shadow-inner shadow-white/[0.02]"
                       >
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">{layer.name}</p>
@@ -277,11 +277,11 @@ export function DevDocsDashboard() {
                     {documentation.flow.map((item, index) => (
                       <div key={item.title} className="flex gap-3">
                         <div className="flex flex-col items-center">
-                          <div className="grid size-7 place-items-center rounded-md bg-primary/15 font-mono text-xs text-primary">
+                          <div className="grid size-8 place-items-center rounded-full border border-primary/25 bg-primary/15 font-mono text-xs text-primary shadow-[0_0_22px_rgba(45,212,191,0.18)]">
                             {index + 1}
                           </div>
                           {index < documentation.flow.length - 1 ? (
-                            <div className="h-full w-px bg-border" />
+                            <div className="h-full w-px bg-gradient-to-b from-primary/50 to-transparent" />
                           ) : null}
                         </div>
                         <div className="pb-3">
@@ -297,7 +297,7 @@ export function DevDocsDashboard() {
               </section>
 
               <Panel title="Documento consolidado" icon={TerminalSquare}>
-                <pre className="max-h-[460px] overflow-auto whitespace-pre-wrap rounded-md border border-white/10 bg-[#08111f] p-4 font-mono text-xs leading-6 text-cyan-50">
+                <pre className="max-h-[460px] overflow-auto whitespace-pre-wrap rounded-[1.5rem] border border-white/10 bg-[#06101d]/90 p-4 font-mono text-xs leading-6 text-cyan-50 shadow-inner shadow-black/40">
                   {documentation.content}
                 </pre>
               </Panel>
@@ -335,7 +335,7 @@ export function DevDocsDashboard() {
                 {documentation.signals.map((signal) => (
                   <div
                     key={signal}
-                    className="flex items-center gap-2 rounded-md border border-white/10 bg-background/70 px-3 py-2 text-sm"
+                    className="flex items-center gap-2 rounded-2xl border border-white/10 bg-background/60 px-3 py-2 text-sm"
                   >
                     <CheckCircle2 className="size-4 text-primary" />
                     <span>{signal}</span>
@@ -353,9 +353,15 @@ export function DevDocsDashboard() {
 function TechBackground() {
   return (
     <div className="pointer-events-none absolute inset-0">
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(20,184,166,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(20,184,166,0.08)_1px,transparent_1px)] bg-[size:44px_44px]" />
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-      <div className="absolute left-0 top-1/4 h-px w-full bg-gradient-to-r from-primary/35 via-transparent to-amber-400/25" />
+      <div className="absolute left-1/2 top-1/2 h-[74rem] w-[74rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-blue-300/10 shadow-[0_0_120px_rgba(59,130,246,0.12)] [transform:translate(-50%,-50%)_rotateX(68deg)_rotateZ(-18deg)]" />
+      <div className="absolute left-1/2 top-1/2 h-[52rem] w-[52rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-sky-300/10 [transform:translate(-50%,-50%)_rotateX(68deg)_rotateZ(22deg)]" />
+      <div className="absolute left-1/2 top-1/2 h-[30rem] w-[30rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-blue-200/10 [transform:translate(-50%,-50%)_rotateX(68deg)_rotateZ(48deg)]" />
+      <div className="absolute left-[12%] top-[18%] size-64 rounded-full bg-blue-500/10 blur-3xl" />
+      <div className="absolute right-[8%] top-[10%] size-72 rounded-full bg-sky-300/10 blur-3xl" />
+      <div className="absolute bottom-[12%] left-[36%] size-80 rounded-full bg-indigo-400/10 blur-3xl" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/50 to-transparent" />
+      <div className="absolute left-0 top-1/4 h-px w-full bg-gradient-to-r from-blue-300/20 via-transparent to-sky-300/20" />
+      <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-background via-background/50 to-transparent" />
     </div>
   );
 }
@@ -364,10 +370,10 @@ function Signal({ label, active = false }: { label: string; active?: boolean }) 
   return (
     <div
       className={cn(
-        "rounded-md border px-3 py-2 font-mono text-xs",
+        "rounded-2xl border px-3 py-2 font-mono text-xs shadow-inner shadow-white/[0.02]",
         active
           ? "border-primary/30 bg-primary/10 text-primary"
-          : "border-white/10 bg-background/70 text-muted-foreground"
+          : "border-white/10 bg-background/60 text-muted-foreground"
       )}
     >
       {label}
@@ -385,9 +391,11 @@ function Panel({
   title: string;
 }) {
   return (
-    <section className="rounded-lg border border-white/10 bg-card/92 p-4 shadow-xl shadow-black/10">
+    <section className="rounded-[1.5rem] border border-white/10 bg-card/70 p-4 shadow-xl shadow-cyan-950/20 backdrop-blur-xl">
       <div className="mb-4 flex items-center gap-2">
-        <Icon className="size-4 text-primary" />
+        <span className="grid size-8 place-items-center rounded-full border border-primary/20 bg-primary/10 text-primary">
+          <Icon className="size-4" />
+        </span>
         <h3 className="text-sm font-semibold">{title}</h3>
       </div>
       {children}
@@ -405,7 +413,7 @@ function Metric({
   value: string | number;
 }) {
   return (
-    <div className="rounded-lg border border-white/10 bg-background/70 p-4">
+    <div className="rounded-[1.5rem] border border-white/10 bg-background/60 p-4 shadow-inner shadow-white/[0.02]">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Icon className="size-4 text-primary" />
         {label}
@@ -417,7 +425,7 @@ function Metric({
 
 function SmallStat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-md border border-white/10 bg-background/70 px-2 py-3 text-center">
+    <div className="rounded-2xl border border-white/10 bg-background/60 px-2 py-3 text-center">
       <p className="font-mono text-sm font-semibold">{value}</p>
       <p className="mt-1 truncate text-[11px] text-muted-foreground">{label}</p>
     </div>

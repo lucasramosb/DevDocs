@@ -7,12 +7,12 @@ namespace DevDocs.Infrastructure.Queue;
 
 public sealed class RedisProjectFileMappingQueue : IProjectFileMappingQueue
 {
-    //nome da fila
     private const string QueueKey = "devdocs:project-file-mapping-jobs";
 
-    private readonly IConnectionMultiplexer _connectionMultiplexer;
+    private readonly Lazy<Task<IConnectionMultiplexer>> _connectionMultiplexer;
 
-    public RedisProjectFileMappingQueue(IConnectionMultiplexer connectionMultiplexer)
+    public RedisProjectFileMappingQueue(
+        Lazy<Task<IConnectionMultiplexer>> connectionMultiplexer)
     {
         _connectionMultiplexer = connectionMultiplexer;
     }
@@ -23,7 +23,8 @@ public sealed class RedisProjectFileMappingQueue : IProjectFileMappingQueue
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var database = _connectionMultiplexer.GetDatabase();
+        var connection = await _connectionMultiplexer.Value.WaitAsync(cancellationToken);
+        var database = connection.GetDatabase();
 
         var payload = JsonSerializer.Serialize(message);
 
@@ -35,7 +36,8 @@ public sealed class RedisProjectFileMappingQueue : IProjectFileMappingQueue
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var database = _connectionMultiplexer.GetDatabase();
+        var connection = await _connectionMultiplexer.Value.WaitAsync(cancellationToken);
+        var database = connection.GetDatabase();
 
         var payload = await database.ListRightPopAsync(QueueKey);
 
