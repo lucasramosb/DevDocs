@@ -31,6 +31,8 @@ public static class DependencyInjection
         services.AddScoped<IFileDocumentationRepository, FileDocumentationRepository>();
         services.AddScoped<IFileDocumentationGenerator, SimpleFileDocumentationGenerator>();
         services.AddScoped<IProjectFileMappingQueue, RedisProjectFileMappingQueue>();
+        services.AddScoped<IProjectDocumentationRepository, ProjectDocumentationRepository>();
+        services.AddScoped<IProjectDocumentationGenerator, SimpleProjectDocumentationGenerator>();
 
         var redisConnectionString = configuration["Redis:ConnectionString"]
             ?? "localhost:6379";

@@ -3,6 +3,7 @@ using DevDocs.Domain.IndexingJobs;
 using DevDocs.Domain.Projects;
 using DevDocs.Domain.SourceFiles;
 using Microsoft.EntityFrameworkCore;
+using DevDocs.Domain.ProjectDocumentations;
 
 namespace DevDocs.Infrastructure.Persistence;
 
@@ -20,6 +21,7 @@ public class DevDocsDbContext : DbContext
     public DbSet<IndexingJob> IndexingJobs => Set<IndexingJob>();
 
     public DbSet<FileDocumentation> FileDocumentations => Set<FileDocumentation>();
+    public DbSet<ProjectDocumentation> ProjectDocumentations => Set<ProjectDocumentation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -173,6 +175,46 @@ public class DevDocsDbContext : DbContext
                 .IsUnique();
 
             builder.HasIndex(documentation => documentation.ProjectId);
+        });
+
+        modelBuilder.Entity<ProjectDocumentation>(builder =>
+        {
+            builder.ToTable("ProjectDocumentations");
+
+            builder.HasKey(documentation => documentation.Id);
+
+            builder.Property(documentation => documentation.ProjectId)
+                .IsRequired();
+
+            builder.Property(documentation => documentation.Title)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            builder.Property(documentation => documentation.Overview)
+                .IsRequired();
+
+            builder.Property(documentation => documentation.Architecture)
+                .IsRequired();
+
+            builder.Property(documentation => documentation.MainFlows)
+                .IsRequired();
+
+            builder.Property(documentation => documentation.Technologies)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            builder.Property(documentation => documentation.Content)
+                .IsRequired();
+
+            builder.Property(documentation => documentation.Generator)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            builder.Property(documentation => documentation.CreatedAt)
+                .IsRequired();
+
+            builder.HasIndex(documentation => documentation.ProjectId)
+                .IsUnique();
         });
     }
 }

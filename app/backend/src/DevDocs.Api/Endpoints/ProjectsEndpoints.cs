@@ -7,6 +7,8 @@ using DevDocs.Application.Queue;
 using DevDocs.Application.SourceFiles.DTOs;
 using DevDocs.Domain.IndexingJobs;
 using DevDocs.Domain.Projects;
+using DevDocs.Application.ProjectDocumentations.DTOs;
+using DevDocs.Domain.ProjectDocumentations;
 
 namespace DevDocs.Api.Endpoints;
 
@@ -529,6 +531,162 @@ public static class ProjectsEndpoints
                     documentation.CreatedAt
                 ))
                 .ToList();
+
+            return Results.Ok(response);
+        });
+
+        group.MapPost("/{projectId:guid}/documentation", async (
+            Guid projectId,
+            IProjectRepository projectRepository,
+            ISourceFileRepository sourceFileRepository,
+            IFileDocumentationRepository fileDocumentationRepository,
+            IProjectDocumentationRepository projectDocumentationRepository,
+            IProjectDocumentationGenerator projectDocumentationGenerator,
+            IUnitOfWork unitOfWork,
+            CancellationToken cancellationToken) =>
+        {
+            var project = await projectRepository.GetByIdAsync(
+                projectId,
+                cancellationToken
+            );
+
+            if (project is null)
+            {
+                return Results.NotFound("Projeto não encontrado.");
+            }
+
+            var sourceFiles = await sourceFileRepository.GetByProjectIdAsync(
+                project.Id,
+                cancellationToken
+            );
+
+            var fileDocumentations = await fileDocumentationRepository.GetByProjectIdAsync(
+                project.Id,
+                cancellationToken
+            );
+
+            if (fileDocumentations.Count == 0)
+            {
+                return Results.BadRequest(
+                    "Gere a documentação dos arquivos antes de gerar a documentação geral do projeto."
+                );
+            }
+
+            var sourceFilesById = sourceFiles.ToDictionary(
+                sourceFile => sourceFile.Id,
+                sourceFile => sourceFile
+            );
+
+            var fileContexts = fileDocumentations
+                .Where(documentation => sourceFilesById.ContainsKey(documentation.SourceFileId))
+                .Select(documentation =>
+                {
+                    var sourceFile = sourceFilesById[documentation.SourceFileId];
+
+                    return new ProjectFileDocumentationContext(
+                        sourceFile.Id,
+                        sourceFile.Path,
+                        sourceFile.Extension,
+                        documentation.Summary,
+                        documentation.Generator
+                    );
+                })
+                .ToList();
+
+            var documentationContext = new ProjectDocumentationContext(
+                project.Name,
+                project.Owner,
+                project.RepositoryName,
+                project.GitHubUrl,
+                project.DefaultBranch,
+                fileContexts
+            );
+
+            var generatedDocumentation = projectDocumentationGenerator.Generate(
+                documentationContext
+            );
+
+            await projectDocumentationRepository.DeleteByProjectIdAsync(
+                project.Id,
+                cancellationToken
+            );
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var documentation = new ProjectDocumentation(
+                project.Id,
+                generatedDocumentation.Title,
+                generatedDocumentation.Overview,
+                generatedDocumentation.Architecture,
+                generatedDocumentation.MainFlows,
+                generatedDocumentation.Technologies,
+                generatedDocumentation.Content,
+                generatedDocumentation.Generator
+            );
+
+            await projectDocumentationRepository.AddAsync(
+                documentation,
+                cancellationToken
+            );
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var response = new ProjectDocumentationResponse(
+                documentation.Id,
+                documentation.ProjectId,
+                documentation.Title,
+                documentation.Overview,
+                documentation.Architecture,
+                documentation.MainFlows,
+                documentation.Technologies,
+                documentation.Content,
+                documentation.Generator,
+                documentation.CreatedAt
+            );
+
+            return Results.Ok(response);
+        });
+
+        group.MapGet("/{projectId:guid}/documentation", async (
+            Guid projectId,
+            IProjectRepository projectRepository,
+            IProjectDocumentationRepository projectDocumentationRepository,
+            CancellationToken cancellationToken) =>
+        {
+            var project = await projectRepository.GetByIdAsync(
+                projectId,
+                cancellationToken
+            );
+
+            if (project is null)
+            {
+                return Results.NotFound("Projeto não encontrado.");
+            }
+
+            var documentation = await projectDocumentationRepository.GetByProjectIdAsync(
+                project.Id,
+                cancellationToken
+            );
+
+            if (documentation is null)
+            {
+                return Results.NotFound(
+                    "Documentação geral ainda não foi gerada para este projeto."
+                );
+            }
+
+            var response = new ProjectDocumentationResponse(
+                documentation.Id,
+                documentation.ProjectId,
+                documentation.Title,
+                documentation.Overview,
+                documentation.Architecture,
+                documentation.MainFlows,
+                documentation.Technologies,
+                documentation.Content,
+                documentation.Generator,
+                documentation.CreatedAt
+            );
 
             return Results.Ok(response);
         });
