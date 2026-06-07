@@ -337,13 +337,13 @@ public static class ProjectsEndpoints
             Guid sourceFileId,
             IProjectRepository projectRepository,
             ISourceFileRepository sourceFileRepository,
-            IFileDocumentationRepository fileDocumentationRepository,
-            IFileDocumentationGenerator fileDocumentationGenerator,
-            IGitHubFileContentClient gitHubFileContentClient,
-            IUnitOfWork unitOfWork,
+            IFileDocumentationGenerationQueue fileDocumentationGenerationQueue,
             CancellationToken cancellationToken) =>
         {
-            var project = await projectRepository.GetByIdAsync(projectId, cancellationToken);
+            var project = await projectRepository.GetByIdAsync(
+                projectId,
+                cancellationToken
+            );
 
             if (project is null)
             {
@@ -365,58 +365,27 @@ public static class ProjectsEndpoints
                 return Results.BadRequest("Arquivo não pertence ao projeto informado.");
             }
 
-            const long maxAllowedFileSizeInBytes = 200_000;
-
-            if (sourceFile.Size > maxAllowedFileSizeInBytes)
-            {
-                return Results.BadRequest("Arquivo muito grande para documentação nesta versão.");
-            }
-
-            var fileContent = await gitHubFileContentClient.GetFileContentAsync(
-                project.Owner,
-                project.RepositoryName,
-                sourceFile.GitHubSha,
-                cancellationToken
-            );
-
-            if (fileContent is null)
-            {
-                return Results.BadRequest("Não foi possível ler o conteúdo do arquivo no GitHub.");
-            }
-
-            var generatedDocumentation = fileDocumentationGenerator.Generate(
-                sourceFile.Path,
-                sourceFile.Extension,
-                fileContent.Content
-            );
-
-            await fileDocumentationRepository.DeleteBySourceFileIdAsync(
-                sourceFile.Id,
-                cancellationToken
-            );
-
-            var documentation = new FileDocumentation(
-                sourceFile.Id,
+            var message = new FileDocumentationGenerationMessage(
                 project.Id,
-                generatedDocumentation.Summary,
-                generatedDocumentation.Content,
-                generatedDocumentation.Generator
+                sourceFile.Id
             );
 
-            await fileDocumentationRepository.AddAsync(documentation, cancellationToken);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-
-            var response = new FileDocumentationResponse(
-                documentation.Id,
-                documentation.ProjectId,
-                documentation.SourceFileId,
-                documentation.Summary,
-                documentation.Content,
-                documentation.Generator,
-                documentation.CreatedAt
+            await fileDocumentationGenerationQueue.EnqueueAsync(
+                message,
+                cancellationToken
             );
 
-            return Results.Ok(response);
+            var response = new QueueFileDocumentationResponse(
+                project.Id,
+                sourceFile.Id,
+                "queued",
+                "Geração de documentação enviada para processamento."
+            );
+
+            return Results.Accepted(
+                $"/projects/{project.Id}/files/{sourceFile.Id}/documentation",
+                response
+            );
         });
 
         group.MapGet("/{projectId:guid}/files/{sourceFileId:guid}/documentation", async (

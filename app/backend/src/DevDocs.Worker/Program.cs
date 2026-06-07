@@ -7,6 +7,8 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddHostedService<ProjectFileMappingWorker>();
 
+builder.Services.AddHostedService<FileDocumentationGenerationWorker>();
+
 var host = builder.Build();
 
 host.Run();

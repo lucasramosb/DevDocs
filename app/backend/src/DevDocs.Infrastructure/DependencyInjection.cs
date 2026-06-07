@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<IIndexingJobRepository, IndexingJobRepository>();
         services.AddScoped<IFileDocumentationRepository, FileDocumentationRepository>();
         services.AddScoped<IFileDocumentationGenerator, SimpleFileDocumentationGenerator>();
+        services.AddScoped<IProjectFileMappingQueue, RedisProjectFileMappingQueue>();
 
         var redisConnectionString = configuration["Redis:ConnectionString"]
             ?? "localhost:6379";
@@ -45,8 +46,6 @@ public static class DependencyInjection
 
                 return await ConnectionMultiplexer.ConnectAsync(options);
             }));
-
-        services.AddScoped<IProjectFileMappingQueue, RedisProjectFileMappingQueue>();
 
         services.AddHttpClient<IGitHubRepositoryClient, GitHubRepositoryClient>(client =>
         {
@@ -68,6 +67,10 @@ public static class DependencyInjection
             client.DefaultRequestHeaders.UserAgent.ParseAdd("DevDocs");
             client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         });
+
+        services.AddScoped<
+            IFileDocumentationGenerationQueue,
+            RedisFileDocumentationGenerationQueue>();
 
         return services;
     }
