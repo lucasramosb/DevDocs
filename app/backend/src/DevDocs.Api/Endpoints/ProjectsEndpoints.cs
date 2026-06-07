@@ -5,7 +5,6 @@ using DevDocs.Application.IndexingJobs.DTOs;
 using DevDocs.Application.Projects.DTOs;
 using DevDocs.Application.Queue;
 using DevDocs.Application.SourceFiles.DTOs;
-using DevDocs.Domain.FileDocumentations;
 using DevDocs.Domain.IndexingJobs;
 using DevDocs.Domain.Projects;
 
@@ -441,5 +440,124 @@ public static class ProjectsEndpoints
             return Results.Ok(response);
         });
 
+        group.MapPost("/{projectId:guid}/files/documentation", async (
+            Guid projectId,
+            IProjectRepository projectRepository,
+            ISourceFileRepository sourceFileRepository,
+            IFileDocumentationGenerationQueue fileDocumentationGenerationQueue,
+            CancellationToken cancellationToken) =>
+        {
+            var project = await projectRepository.GetByIdAsync(
+                projectId,
+                cancellationToken
+            );
+
+            if (project is null)
+            {
+                return Results.NotFound("Projeto não encontrado.");
+            }
+
+            var sourceFiles = await sourceFileRepository.GetByProjectIdAsync(
+                project.Id,
+                cancellationToken
+            );
+
+            const long maxAllowedFileSizeInBytes = 200_000;
+
+            var eligibleFiles = sourceFiles
+                .Where(sourceFile => sourceFile.Size <= maxAllowedFileSizeInBytes)
+                .Where(sourceFile => IsDocumentableExtension(sourceFile.Extension))
+                .ToList();
+
+            foreach (var sourceFile in eligibleFiles)
+            {
+                var message = new FileDocumentationGenerationMessage(
+                    project.Id,
+                    sourceFile.Id
+                );
+
+                await fileDocumentationGenerationQueue.EnqueueAsync(
+                    message,
+                    cancellationToken
+                );
+            }
+
+            var response = new QueueProjectFilesDocumentationResponse(
+                project.Id,
+                sourceFiles.Count,
+                eligibleFiles.Count,
+                sourceFiles.Count - eligibleFiles.Count,
+                "queued",
+                "Geração de documentação enviada para os arquivos elegíveis."
+            );
+
+            return Results.Accepted(
+                $"/projects/{project.Id}/documentations",
+                response
+            );
+        });
+
+        group.MapGet("/{projectId:guid}/documentations", async (
+            Guid projectId,
+            IProjectRepository projectRepository,
+            IFileDocumentationRepository fileDocumentationRepository,
+            CancellationToken cancellationToken) =>
+        {
+            var project = await projectRepository.GetByIdAsync(
+                projectId,
+                cancellationToken
+            );
+
+            if (project is null)
+            {
+                return Results.NotFound("Projeto não encontrado.");
+            }
+
+            var documentations = await fileDocumentationRepository.GetByProjectIdAsync(
+                project.Id,
+                cancellationToken
+            );
+
+            var response = documentations
+                .Select(documentation => new FileDocumentationResponse(
+                    documentation.Id,
+                    documentation.ProjectId,
+                    documentation.SourceFileId,
+                    documentation.Summary,
+                    documentation.Content,
+                    documentation.Generator,
+                    documentation.CreatedAt
+                ))
+                .ToList();
+
+            return Results.Ok(response);
+        });
+
+    }
+
+    private static bool IsDocumentableExtension(string extension)
+    {
+        var documentableExtensions = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase)
+    {
+        ".cs",
+        ".csproj",
+        ".sln",
+        ".md",
+        ".json",
+        ".yml",
+        ".yaml",
+        ".xml",
+        ".txt",
+        ".js",
+        ".ts",
+        ".jsx",
+        ".tsx",
+        ".py",
+        ".java",
+        ".css",
+    };
+
+        return documentableExtensions.Contains(extension);
     }
 }

@@ -34,6 +34,16 @@ public class FileDocumentationRepository : IFileDocumentationRepository
             );
     }
 
+    public async Task<List<FileDocumentation>> GetByProjectIdAsync(
+    Guid projectId,
+    CancellationToken cancellationToken)
+    {
+        return await _dbContext.FileDocumentations
+            .Where(documentation => documentation.ProjectId == projectId)
+            .OrderByDescending(documentation => documentation.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task DeleteBySourceFileIdAsync(
         Guid sourceFileId,
         CancellationToken cancellationToken)

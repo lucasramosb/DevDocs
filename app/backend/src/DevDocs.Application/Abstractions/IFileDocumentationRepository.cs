@@ -12,7 +12,12 @@ public interface IFileDocumentationRepository
         Guid sourceFileId,
         CancellationToken cancellationToken);
 
+    Task<List<FileDocumentation>> GetByProjectIdAsync(
+        Guid projectId,
+        CancellationToken cancellationToken);
+
     Task DeleteBySourceFileIdAsync(
         Guid sourceFileId,
         CancellationToken cancellationToken);
+
 }
