@@ -4,10 +4,11 @@ namespace DevDocs.Infrastructure.Documentation;
 
 public class SimpleFileDocumentationGenerator : IFileDocumentationGenerator
 {
-    public FileDocumentationResult Generate(
+    public Task<FileDocumentationResult> GenerateAsync(
         string filePath,
         string extension,
-        string content)
+        string content,
+        CancellationToken cancellationToken)
     {
         var fileType = GetFileType(extension);
 
@@ -28,22 +29,24 @@ public class SimpleFileDocumentationGenerator : IFileDocumentationGenerator
 
         {summary}
 
-        ## Observações iniciais
+        ## Observações
 
-        Este arquivo foi analisado por um gerador simples baseado em regras.
+        Esta documentação foi gerada por um gerador simples baseado em regras.
 
-        ## Primeiras linhas do arquivo
+        ## Prévia do arquivo
 
         ```txt
         {GetPreview(content)}
         ```
         """;
 
-        return new FileDocumentationResult(
+        var result = new FileDocumentationResult(
             summary,
             documentation,
             "SimpleRuleBasedGenerator"
         );
+
+        return Task.FromResult(result);
     }
 
     private static string GetFileType(string extension)
@@ -57,12 +60,6 @@ public class SimpleFileDocumentationGenerator : IFileDocumentationGenerator
             ".json" => "arquivo JSON",
             ".yml" => "arquivo YAML",
             ".yaml" => "arquivo YAML",
-            ".ts" => "código TypeScript",
-            ".tsx" => "código TypeScript React",
-            ".js" => "código JavaScript",
-            ".jsx" => "código JavaScript React",
-            ".css" => "arquivo de estilos CSS",
-            "json" => "arquivo JSON",
             _ => "arquivo de código ou configuração"
         };
     }

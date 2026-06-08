@@ -1,6 +1,7 @@
 using DevDocs.Application.Abstractions;
 using DevDocs.Infrastructure.Documentation;
 using DevDocs.Infrastructure.GitHub;
+using DevDocs.Infrastructure.Ollama;
 using DevDocs.Infrastructure.Persistence;
 using DevDocs.Infrastructure.Persistence.Repositories;
 using DevDocs.Infrastructure.Queue;
@@ -25,19 +26,36 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IProjectRepository, ProjectRepository>();
-        services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<ISourceFileRepository, SourceFileRepository>();
         services.AddScoped<IIndexingJobRepository, IndexingJobRepository>();
+
         services.AddScoped<IFileDocumentationRepository, FileDocumentationRepository>();
-        services.AddScoped<IFileDocumentationGenerator, SimpleFileDocumentationGenerator>();
-        services.AddScoped<IProjectFileMappingQueue, RedisProjectFileMappingQueue>();
         services.AddScoped<IProjectDocumentationRepository, ProjectDocumentationRepository>();
+
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        services.Configure<OllamaOptions>(
+            configuration.GetSection("Ollama")
+        );
+
+        services.AddHttpClient<IFileDocumentationGenerator, OllamaFileDocumentationGenerator>(
+            (serviceProvider, client) =>
+            {
+                var options = serviceProvider
+                    .GetRequiredService<Microsoft.Extensions.Options.IOptions<OllamaOptions>>()
+                    .Value;
+
+                client.BaseAddress = new Uri(options.BaseUrl);
+                client.Timeout = TimeSpan.FromMinutes(5);
+            }
+        );
+
         services.AddScoped<IProjectDocumentationGenerator, SimpleProjectDocumentationGenerator>();
 
         var redisConnectionString = configuration["Redis:ConnectionString"]
             ?? "localhost:6379";
 
-        services.AddSingleton(_ =>
+        services.AddSingleton<Lazy<Task<IConnectionMultiplexer>>>(_ =>
             new Lazy<Task<IConnectionMultiplexer>>(async () =>
             {
                 var options = ConfigurationOptions.Parse(redisConnectionString);
@@ -48,6 +66,12 @@ public static class DependencyInjection
 
                 return await ConnectionMultiplexer.ConnectAsync(options);
             }));
+
+        services.AddScoped<IProjectFileMappingQueue, RedisProjectFileMappingQueue>();
+
+        services.AddScoped<
+            IFileDocumentationGenerationQueue,
+            RedisFileDocumentationGenerationQueue>();
 
         services.AddHttpClient<IGitHubRepositoryClient, GitHubRepositoryClient>(client =>
         {
@@ -69,10 +93,6 @@ public static class DependencyInjection
             client.DefaultRequestHeaders.UserAgent.ParseAdd("DevDocs");
             client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         });
-
-        services.AddScoped<
-            IFileDocumentationGenerationQueue,
-            RedisFileDocumentationGenerationQueue>();
 
         return services;
     }

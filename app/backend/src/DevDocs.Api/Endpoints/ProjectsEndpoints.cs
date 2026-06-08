@@ -698,23 +698,23 @@ public static class ProjectsEndpoints
         var documentableExtensions = new HashSet<string>(
             StringComparer.OrdinalIgnoreCase)
     {
-        ".cs",
-        ".csproj",
-        ".sln",
-        ".md",
-        ".json",
-        ".yml",
-        ".yaml",
-        ".xml",
-        ".txt",
-        ".js",
-        ".ts",
-        ".jsx",
-        ".tsx",
-        ".py",
-        ".java",
-        ".css",
-    };
+    ".cs",
+    ".csproj",
+    ".sln",
+
+    ".js",
+    ".jsx",
+    ".ts",
+    ".tsx",
+
+    ".css",
+    ".scss",
+
+    ".md",
+    ".json",
+    ".yml",
+    ".yaml"
+};
 
         return documentableExtensions.Contains(extension);
     }

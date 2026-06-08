@@ -156,10 +156,11 @@ public sealed class FileDocumentationGenerationWorker : BackgroundService
             return;
         }
 
-        var generatedDocumentation = fileDocumentationGenerator.Generate(
+        var generatedDocumentation = await fileDocumentationGenerator.GenerateAsync(
             sourceFile.Path,
             sourceFile.Extension,
-            fileContent.Content
+            fileContent.Content,
+            cancellationToken
         );
 
         await fileDocumentationRepository.DeleteBySourceFileIdAsync(

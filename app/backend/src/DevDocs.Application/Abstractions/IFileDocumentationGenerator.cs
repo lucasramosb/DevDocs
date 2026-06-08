@@ -2,10 +2,11 @@ namespace DevDocs.Application.Abstractions;
 
 public interface IFileDocumentationGenerator
 {
-    FileDocumentationResult Generate(
+    Task<FileDocumentationResult> GenerateAsync(
         string filePath,
         string extension,
-        string content);
+        string content,
+        CancellationToken cancellationToken);
 }
 
 public sealed record FileDocumentationResult(
