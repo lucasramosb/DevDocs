@@ -1,24 +1,26 @@
+using System;
 using System.Text.Json;
-using DevDocs.Application.Abstractions;
+using System.Threading;
+using System.Threading.Tasks;
 using DevDocs.Application.Queue;
 using StackExchange.Redis;
 
 namespace DevDocs.Infrastructure.Queue;
 
-public sealed class RedisProjectFileMappingQueue : IProjectFileMappingQueue
+public sealed class RedisProjectAnalysisQueue : IProjectAnalysisQueue
 {
-    private const string QueueKey = "devdocs:project-file-mapping-jobs";
+    private const string QueueKey = "devdocs:project-analysis-jobs";
 
     private readonly Lazy<Task<IConnectionMultiplexer>> _connectionMultiplexer;
 
-    public RedisProjectFileMappingQueue(
+    public RedisProjectAnalysisQueue(
         Lazy<Task<IConnectionMultiplexer>> connectionMultiplexer)
     {
         _connectionMultiplexer = connectionMultiplexer;
     }
 
     public async Task EnqueueAsync(
-        ProjectFileMappingMessage message,
+        ProjectAnalysisMessage message,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -31,7 +33,7 @@ public sealed class RedisProjectFileMappingQueue : IProjectFileMappingQueue
         await database.ListLeftPushAsync(QueueKey, payload);
     }
 
-    public async Task<ProjectFileMappingMessage?> DequeueAsync(
+    public async Task<ProjectAnalysisMessage?> DequeueAsync(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -46,7 +48,7 @@ public sealed class RedisProjectFileMappingQueue : IProjectFileMappingQueue
             return null;
         }
 
-        return JsonSerializer.Deserialize<ProjectFileMappingMessage>(
+        return JsonSerializer.Deserialize<ProjectAnalysisMessage>(
             payload.ToString()
         );
     }

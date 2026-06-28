@@ -30,4 +30,10 @@ public class ProjectRepository : IProjectRepository
         return await _dbContext.Projects
             .FirstOrDefaultAsync(project => project.Id == id, cancellationToken);
     }
+
+    public async Task<Project?> GetByGitHubUrlAsync(string githubUrl, CancellationToken cancellationToken)
+    {
+        return await _dbContext.Projects
+            .FirstOrDefaultAsync(project => project.GitHubUrl == githubUrl, cancellationToken);
+    }
 }

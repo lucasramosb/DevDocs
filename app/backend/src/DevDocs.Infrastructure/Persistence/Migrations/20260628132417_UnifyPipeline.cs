@@ -1,0 +1,77 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace DevDocs.Infrastructure.Persistence.Migrations
+{
+    /// <inheritdoc />
+    public partial class UnifyPipeline : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropTable(
+                name: "IndexingJobs");
+
+            migrationBuilder.CreateTable(
+                name: "ProjectAnalysisJobs",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ProjectId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Status = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
+                    CurrentStep = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
+                    Progress = table.Column<int>(type: "INTEGER", nullable: false),
+                    FilesFound = table.Column<int>(type: "INTEGER", nullable: false),
+                    FilesProcessed = table.Column<int>(type: "INTEGER", nullable: false),
+                    FilesDocumented = table.Column<int>(type: "INTEGER", nullable: false),
+                    ErrorMessage = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    StartedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    FinishedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ProjectAnalysisJobs", x => x.Id);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ProjectAnalysisJobs_ProjectId",
+                table: "ProjectAnalysisJobs",
+                column: "ProjectId");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropTable(
+                name: "ProjectAnalysisJobs");
+
+            migrationBuilder.CreateTable(
+                name: "IndexingJobs",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    ErrorMessage = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: true),
+                    FinishedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    ProjectId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    StartedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    Status = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
+                    TotalFilesFound = table.Column<int>(type: "INTEGER", nullable: false),
+                    TotalFilesIgnored = table.Column<int>(type: "INTEGER", nullable: false),
+                    TotalFilesMapped = table.Column<int>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_IndexingJobs", x => x.Id);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_IndexingJobs_ProjectId",
+                table: "IndexingJobs",
+                column: "ProjectId");
+        }
+    }
+}

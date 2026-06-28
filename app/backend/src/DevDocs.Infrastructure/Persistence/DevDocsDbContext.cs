@@ -1,5 +1,5 @@
 using DevDocs.Domain.FileDocumentations;
-using DevDocs.Domain.IndexingJobs;
+using DevDocs.Domain.ProjectAnalysisJobs;
 using DevDocs.Domain.Projects;
 using DevDocs.Domain.SourceFiles;
 using Microsoft.EntityFrameworkCore;
@@ -18,7 +18,7 @@ public class DevDocsDbContext : DbContext
 
     public DbSet<SourceFile> SourceFiles => Set<SourceFile>();
 
-    public DbSet<IndexingJob> IndexingJobs => Set<IndexingJob>();
+    public DbSet<ProjectAnalysisJob> ProjectAnalysisJobs => Set<ProjectAnalysisJob>();
 
     public DbSet<FileDocumentation> FileDocumentations => Set<FileDocumentation>();
     public DbSet<ProjectDocumentation> ProjectDocumentations => Set<ProjectDocumentation>();
@@ -109,40 +109,48 @@ public class DevDocsDbContext : DbContext
             }).IsUnique();
         });
 
-        modelBuilder.Entity<IndexingJob>(builder =>
+        modelBuilder.Entity<ProjectAnalysisJob>(builder =>
         {
-            builder.ToTable("IndexingJobs");
+            builder.ToTable("ProjectAnalysisJobs");
 
-            builder.HasKey(indexingJob => indexingJob.Id);
+            builder.HasKey(job => job.Id);
 
-            builder.Property(indexingJob => indexingJob.ProjectId)
+            builder.Property(job => job.ProjectId)
                 .IsRequired();
 
-            builder.Property(indexingJob => indexingJob.Status)
+            builder.Property(job => job.Status)
                 .HasConversion<string>()
                 .IsRequired()
                 .HasMaxLength(50);
 
-            builder.Property(indexingJob => indexingJob.TotalFilesFound)
+            builder.Property(job => job.CurrentStep)
+                .HasConversion<string>()
+                .IsRequired()
+                .HasMaxLength(50);
+
+            builder.Property(job => job.Progress)
                 .IsRequired();
 
-            builder.Property(indexingJob => indexingJob.TotalFilesMapped)
+            builder.Property(job => job.FilesFound)
                 .IsRequired();
 
-            builder.Property(indexingJob => indexingJob.TotalFilesIgnored)
+            builder.Property(job => job.FilesProcessed)
                 .IsRequired();
 
-            builder.Property(indexingJob => indexingJob.ErrorMessage)
+            builder.Property(job => job.FilesDocumented)
+                .IsRequired();
+
+            builder.Property(job => job.ErrorMessage)
                 .HasMaxLength(2000);
 
-            builder.Property(indexingJob => indexingJob.CreatedAt)
+            builder.Property(job => job.CreatedAt)
                 .IsRequired();
 
-            builder.Property(indexingJob => indexingJob.StartedAt);
+            builder.Property(job => job.StartedAt);
 
-            builder.Property(indexingJob => indexingJob.FinishedAt);
+            builder.Property(job => job.FinishedAt);
 
-            builder.HasIndex(indexingJob => indexingJob.ProjectId);
+            builder.HasIndex(job => job.ProjectId);
         });
 
         modelBuilder.Entity<FileDocumentation>(builder =>

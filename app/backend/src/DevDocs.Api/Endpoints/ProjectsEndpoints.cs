@@ -1,14 +1,11 @@
 using DevDocs.Application.Abstractions;
-using DevDocs.Application.FileDocumentations.DTOs;
 using DevDocs.Application.GitHub;
-using DevDocs.Application.IndexingJobs.DTOs;
+using DevDocs.Application.ProjectAnalysisJobs.DTOs;
 using DevDocs.Application.Projects.DTOs;
 using DevDocs.Application.Queue;
-using DevDocs.Application.SourceFiles.DTOs;
-using DevDocs.Domain.IndexingJobs;
+using DevDocs.Domain.ProjectAnalysisJobs;
 using DevDocs.Domain.Projects;
 using DevDocs.Application.ProjectDocumentations.DTOs;
-using DevDocs.Domain.ProjectDocumentations;
 
 namespace DevDocs.Api.Endpoints;
 
@@ -19,14 +16,16 @@ public static class ProjectsEndpoints
         var group = app.MapGroup("/projects")
             .WithTags("Projects");
 
-        group.MapPost("/", async (
-            CreateProjectRequest request,
+        group.MapPost("/analyze", async (
+            AnalyzeProjectRequest request,
             IGitHubRepositoryClient gitHubRepositoryClient,
             IProjectRepository projectRepository,
+            IProjectAnalysisJobRepository jobRepository,
+            IProjectAnalysisQueue queue,
             IUnitOfWork unitOfWork,
             CancellationToken cancellationToken) =>
         {
-            if (!GitHubRepositoryUrl.TryParse(request.GitHubUrl, out var repositoryUrl) ||
+            if (!GitHubRepositoryUrl.TryParse(request.GithubUrl, out var repositoryUrl) ||
                 repositoryUrl is null)
             {
                 return Results.BadRequest("Informe uma URL válida de repositório do GitHub.");
@@ -43,30 +42,40 @@ public static class ProjectsEndpoints
                 return Results.BadRequest("Repositório não encontrado ou não é público.");
             }
 
-            var project = new Project(
-                repositoryInfo.Name,
-                repositoryInfo.Owner,
-                repositoryInfo.Name,
+            var project = await projectRepository.GetByGitHubUrlAsync(
                 repositoryInfo.HtmlUrl,
-                repositoryInfo.DefaultBranch,
-                repositoryInfo.Description
+                cancellationToken
             );
 
-            await projectRepository.AddAsync(project, cancellationToken);
+            if (project is null)
+            {
+                project = new Project(
+                    repositoryInfo.Name,
+                    repositoryInfo.Owner,
+                    repositoryInfo.Name,
+                    repositoryInfo.HtmlUrl,
+                    repositoryInfo.DefaultBranch,
+                    repositoryInfo.Description
+                );
+
+                await projectRepository.AddAsync(project, cancellationToken);
+            }
+            
+            var job = new ProjectAnalysisJob(project.Id);
+            await jobRepository.AddAsync(job, cancellationToken);
+            
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var response = new ProjectResponse(
+            var message = new ProjectAnalysisMessage(project.Id, job.Id);
+            await queue.EnqueueAsync(message, cancellationToken);
+
+            var response = new AnalyzeProjectResponse(
                 project.Id,
-                project.Name,
-                project.Owner,
-                project.RepositoryName,
-                project.GitHubUrl,
-                project.DefaultBranch,
-                project.Description,
-                project.CreatedAt
+                job.Id,
+                job.Status.ToString()
             );
 
-            return Results.Created($"/projects/{project.Id}", response);
+            return Results.Accepted($"/projects/{project.Id}/analysis-jobs/{job.Id}", response);
         });
 
         group.MapGet("/", async (
@@ -117,87 +126,11 @@ public static class ProjectsEndpoints
             return Results.Ok(response);
         });
 
-        group.MapPost("/{id:guid}/map-files", async (
-            Guid id,
-            IProjectRepository projectRepository,
-            IIndexingJobRepository indexingJobRepository,
-            IProjectFileMappingQueue projectFileMappingQueue,
-            IUnitOfWork unitOfWork,
-            CancellationToken cancellationToken) =>
-        {
-            var project = await projectRepository.GetByIdAsync(id, cancellationToken);
-
-            if (project is null)
-            {
-                return Results.NotFound("Projeto não encontrado.");
-            }
-
-            var indexingJob = new IndexingJob(project.Id);
-
-            await indexingJobRepository.AddAsync(indexingJob, cancellationToken);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-
-            var message = new ProjectFileMappingMessage(
-                project.Id,
-                indexingJob.Id
-            );
-
-            await projectFileMappingQueue.EnqueueAsync(message, cancellationToken);
-
-            var response = new QueueIndexingJobResponse(
-                project.Id,
-                indexingJob.Id,
-                indexingJob.Status.ToString(),
-                "Mapeamento de arquivos enviado para processamento."
-            );
-
-            return Results.Accepted(
-                $"/projects/{project.Id}/indexing-jobs/{indexingJob.Id}",
-                response
-            );
-        });
-
-        group.MapGet("/{id:guid}/files", async (
-            Guid id,
-            IProjectRepository projectRepository,
-            ISourceFileRepository sourceFileRepository,
-            CancellationToken cancellationToken) =>
-        {
-            var project = await projectRepository.GetByIdAsync(id, cancellationToken);
-
-            if (project is null)
-            {
-                return Results.NotFound("Projeto não encontrado.");
-            }
-
-            var sourceFiles = await sourceFileRepository.GetByProjectIdAsync(
-                project.Id,
-                cancellationToken
-            );
-
-            var response = sourceFiles
-                .Select(sourceFile => new SourceFileResponse(
-                    sourceFile.Id,
-                    sourceFile.ProjectId,
-                    sourceFile.Path,
-                    sourceFile.Name,
-                    sourceFile.Extension,
-                    sourceFile.Size,
-                    sourceFile.IsDocumentationFile,
-                    sourceFile.IsTestFile,
-                    sourceFile.CreatedAt
-                ))
-                .ToList();
-
-            return Results.Ok(response);
-        });
-
-        group.MapGet("/{projectId:guid}/files/{sourceFileId:guid}/content", async (
+        group.MapGet("/{projectId:guid}/analysis-jobs/{jobId:guid}", async (
             Guid projectId,
-            Guid sourceFileId,
+            Guid jobId,
             IProjectRepository projectRepository,
-            ISourceFileRepository sourceFileRepository,
-            IGitHubFileContentClient gitHubFileContentClient,
+            IProjectAnalysisJobRepository jobRepository,
             CancellationToken cancellationToken) =>
         {
             var project = await projectRepository.GetByIdAsync(projectId, cancellationToken);
@@ -207,441 +140,31 @@ public static class ProjectsEndpoints
                 return Results.NotFound("Projeto não encontrado.");
             }
 
-            var sourceFile = await sourceFileRepository.GetByIdAsync(
-                sourceFileId,
-                cancellationToken
-            );
+            var job = await jobRepository.GetByIdAsync(jobId, cancellationToken);
 
-            if (sourceFile is null)
-            {
-                return Results.NotFound("Arquivo não encontrado.");
-            }
-
-            if (sourceFile.ProjectId != project.Id)
-            {
-                return Results.BadRequest("Arquivo não pertence ao projeto informado.");
-            }
-
-            const long maxAllowedFileSizeInBytes = 200_000;
-
-            if (sourceFile.Size > maxAllowedFileSizeInBytes)
-            {
-                return Results.BadRequest("Arquivo muito grande para leitura nesta versão.");
-            }
-
-            var fileContent = await gitHubFileContentClient.GetFileContentAsync(
-                project.Owner,
-                project.RepositoryName,
-                sourceFile.GitHubSha,
-                cancellationToken
-            );
-
-            if (fileContent is null)
-            {
-                return Results.BadRequest("Não foi possível ler o conteúdo do arquivo no GitHub.");
-            }
-
-            var response = new SourceFileContentResponse(
-                sourceFile.Id,
-                project.Id,
-                sourceFile.Path,
-                sourceFile.Extension,
-                fileContent.Content
-            );
-
-            return Results.Ok(response);
-        });
-
-        group.MapGet("/{id:guid}/indexing-jobs", async (
-            Guid id,
-            IProjectRepository projectRepository,
-            IIndexingJobRepository indexingJobRepository,
-            CancellationToken cancellationToken) =>
-        {
-            var project = await projectRepository.GetByIdAsync(id, cancellationToken);
-
-            if (project is null)
-            {
-                return Results.NotFound("Projeto não encontrado.");
-            }
-
-            var indexingJobs = await indexingJobRepository.GetByProjectIdAsync(
-                project.Id,
-                cancellationToken
-            );
-
-            var response = indexingJobs
-                .Select(indexingJob => new IndexingJobResponse(
-                    indexingJob.Id,
-                    indexingJob.ProjectId,
-                    indexingJob.Status.ToString(),
-                    indexingJob.TotalFilesFound,
-                    indexingJob.TotalFilesMapped,
-                    indexingJob.TotalFilesIgnored,
-                    indexingJob.ErrorMessage,
-                    indexingJob.CreatedAt,
-                    indexingJob.StartedAt,
-                    indexingJob.FinishedAt
-                ))
-                .ToList();
-
-            return Results.Ok(response);
-        });
-
-        group.MapGet("/{projectId:guid}/indexing-jobs/{indexingJobId:guid}", async (
-            Guid projectId,
-            Guid indexingJobId,
-            IProjectRepository projectRepository,
-            IIndexingJobRepository indexingJobRepository,
-            CancellationToken cancellationToken) =>
-        {
-            var project = await projectRepository.GetByIdAsync(projectId, cancellationToken);
-
-            if (project is null)
-            {
-                return Results.NotFound("Projeto não encontrado.");
-            }
-
-            var indexingJob = await indexingJobRepository.GetByIdAsync(
-                indexingJobId,
-                cancellationToken
-            );
-
-            if (indexingJob is null)
+            if (job is null)
             {
                 return Results.NotFound("Job não encontrado.");
             }
 
-            if (indexingJob.ProjectId != project.Id)
+            if (job.ProjectId != project.Id)
             {
                 return Results.BadRequest("Job não pertence ao projeto informado.");
             }
 
-            var response = new IndexingJobResponse(
-                indexingJob.Id,
-                indexingJob.ProjectId,
-                indexingJob.Status.ToString(),
-                indexingJob.TotalFilesFound,
-                indexingJob.TotalFilesMapped,
-                indexingJob.TotalFilesIgnored,
-                indexingJob.ErrorMessage,
-                indexingJob.CreatedAt,
-                indexingJob.StartedAt,
-                indexingJob.FinishedAt
-            );
-
-            return Results.Ok(response);
-        });
-
-        group.MapPost("/{projectId:guid}/files/{sourceFileId:guid}/documentation", async (
-            Guid projectId,
-            Guid sourceFileId,
-            IProjectRepository projectRepository,
-            ISourceFileRepository sourceFileRepository,
-            IFileDocumentationGenerationQueue fileDocumentationGenerationQueue,
-            CancellationToken cancellationToken) =>
-        {
-            var project = await projectRepository.GetByIdAsync(
-                projectId,
-                cancellationToken
-            );
-
-            if (project is null)
-            {
-                return Results.NotFound("Projeto não encontrado.");
-            }
-
-            var sourceFile = await sourceFileRepository.GetByIdAsync(
-                sourceFileId,
-                cancellationToken
-            );
-
-            if (sourceFile is null)
-            {
-                return Results.NotFound("Arquivo não encontrado.");
-            }
-
-            if (sourceFile.ProjectId != project.Id)
-            {
-                return Results.BadRequest("Arquivo não pertence ao projeto informado.");
-            }
-
-            var message = new FileDocumentationGenerationMessage(
-                project.Id,
-                sourceFile.Id
-            );
-
-            await fileDocumentationGenerationQueue.EnqueueAsync(
-                message,
-                cancellationToken
-            );
-
-            var response = new QueueFileDocumentationResponse(
-                project.Id,
-                sourceFile.Id,
-                "queued",
-                "Geração de documentação enviada para processamento."
-            );
-
-            return Results.Accepted(
-                $"/projects/{project.Id}/files/{sourceFile.Id}/documentation",
-                response
-            );
-        });
-
-        group.MapGet("/{projectId:guid}/files/{sourceFileId:guid}/documentation", async (
-            Guid projectId,
-            Guid sourceFileId,
-            IProjectRepository projectRepository,
-            ISourceFileRepository sourceFileRepository,
-            IFileDocumentationRepository fileDocumentationRepository,
-            CancellationToken cancellationToken) =>
-        {
-            var project = await projectRepository.GetByIdAsync(projectId, cancellationToken);
-
-            if (project is null)
-            {
-                return Results.NotFound("Projeto não encontrado.");
-            }
-
-            var sourceFile = await sourceFileRepository.GetByIdAsync(
-                sourceFileId,
-                cancellationToken
-            );
-
-            if (sourceFile is null)
-            {
-                return Results.NotFound("Arquivo não encontrado.");
-            }
-
-            if (sourceFile.ProjectId != project.Id)
-            {
-                return Results.BadRequest("Arquivo não pertence ao projeto informado.");
-            }
-
-            var documentation = await fileDocumentationRepository.GetBySourceFileIdAsync(
-                sourceFile.Id,
-                cancellationToken
-            );
-
-            if (documentation is null)
-            {
-                return Results.NotFound("Documentação ainda não foi gerada para este arquivo.");
-            }
-
-            var response = new FileDocumentationResponse(
-                documentation.Id,
-                documentation.ProjectId,
-                documentation.SourceFileId,
-                documentation.Summary,
-                documentation.Content,
-                documentation.Generator,
-                documentation.CreatedAt
-            );
-
-            return Results.Ok(response);
-        });
-
-        group.MapPost("/{projectId:guid}/files/documentation", async (
-            Guid projectId,
-            IProjectRepository projectRepository,
-            ISourceFileRepository sourceFileRepository,
-            IFileDocumentationGenerationQueue fileDocumentationGenerationQueue,
-            CancellationToken cancellationToken) =>
-        {
-            var project = await projectRepository.GetByIdAsync(
-                projectId,
-                cancellationToken
-            );
-
-            if (project is null)
-            {
-                return Results.NotFound("Projeto não encontrado.");
-            }
-
-            var sourceFiles = await sourceFileRepository.GetByProjectIdAsync(
-                project.Id,
-                cancellationToken
-            );
-
-            const long maxAllowedFileSizeInBytes = 200_000;
-
-            var eligibleFiles = sourceFiles
-                .Where(sourceFile => sourceFile.Size <= maxAllowedFileSizeInBytes)
-                .Where(sourceFile => IsDocumentableExtension(sourceFile.Extension))
-                .ToList();
-
-            foreach (var sourceFile in eligibleFiles)
-            {
-                var message = new FileDocumentationGenerationMessage(
-                    project.Id,
-                    sourceFile.Id
-                );
-
-                await fileDocumentationGenerationQueue.EnqueueAsync(
-                    message,
-                    cancellationToken
-                );
-            }
-
-            var response = new QueueProjectFilesDocumentationResponse(
-                project.Id,
-                sourceFiles.Count,
-                eligibleFiles.Count,
-                sourceFiles.Count - eligibleFiles.Count,
-                "queued",
-                "Geração de documentação enviada para os arquivos elegíveis."
-            );
-
-            return Results.Accepted(
-                $"/projects/{project.Id}/documentations",
-                response
-            );
-        });
-
-        group.MapGet("/{projectId:guid}/documentations", async (
-            Guid projectId,
-            IProjectRepository projectRepository,
-            IFileDocumentationRepository fileDocumentationRepository,
-            CancellationToken cancellationToken) =>
-        {
-            var project = await projectRepository.GetByIdAsync(
-                projectId,
-                cancellationToken
-            );
-
-            if (project is null)
-            {
-                return Results.NotFound("Projeto não encontrado.");
-            }
-
-            var documentations = await fileDocumentationRepository.GetByProjectIdAsync(
-                project.Id,
-                cancellationToken
-            );
-
-            var response = documentations
-                .Select(documentation => new FileDocumentationResponse(
-                    documentation.Id,
-                    documentation.ProjectId,
-                    documentation.SourceFileId,
-                    documentation.Summary,
-                    documentation.Content,
-                    documentation.Generator,
-                    documentation.CreatedAt
-                ))
-                .ToList();
-
-            return Results.Ok(response);
-        });
-
-        group.MapPost("/{projectId:guid}/documentation", async (
-            Guid projectId,
-            IProjectRepository projectRepository,
-            ISourceFileRepository sourceFileRepository,
-            IFileDocumentationRepository fileDocumentationRepository,
-            IProjectDocumentationRepository projectDocumentationRepository,
-            IProjectDocumentationGenerator projectDocumentationGenerator,
-            IUnitOfWork unitOfWork,
-            CancellationToken cancellationToken) =>
-        {
-            var project = await projectRepository.GetByIdAsync(
-                projectId,
-                cancellationToken
-            );
-
-            if (project is null)
-            {
-                return Results.NotFound("Projeto não encontrado.");
-            }
-
-            var sourceFiles = await sourceFileRepository.GetByProjectIdAsync(
-                project.Id,
-                cancellationToken
-            );
-
-            var fileDocumentations = await fileDocumentationRepository.GetByProjectIdAsync(
-                project.Id,
-                cancellationToken
-            );
-
-            if (fileDocumentations.Count == 0)
-            {
-                return Results.BadRequest(
-                    "Gere a documentação dos arquivos antes de gerar a documentação geral do projeto."
-                );
-            }
-
-            var sourceFilesById = sourceFiles.ToDictionary(
-                sourceFile => sourceFile.Id,
-                sourceFile => sourceFile
-            );
-
-            var fileContexts = fileDocumentations
-                .Where(documentation => sourceFilesById.ContainsKey(documentation.SourceFileId))
-                .Select(documentation =>
-                {
-                    var sourceFile = sourceFilesById[documentation.SourceFileId];
-
-                    return new ProjectFileDocumentationContext(
-                        sourceFile.Id,
-                        sourceFile.Path,
-                        sourceFile.Extension,
-                        documentation.Summary,
-                        documentation.Generator
-                    );
-                })
-                .ToList();
-
-            var documentationContext = new ProjectDocumentationContext(
-                project.Name,
-                project.Owner,
-                project.RepositoryName,
-                project.GitHubUrl,
-                project.DefaultBranch,
-                fileContexts
-            );
-
-            var generatedDocumentation = projectDocumentationGenerator.Generate(
-                documentationContext
-            );
-
-            await projectDocumentationRepository.DeleteByProjectIdAsync(
-                project.Id,
-                cancellationToken
-            );
-
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-
-            var documentation = new ProjectDocumentation(
-                project.Id,
-                generatedDocumentation.Title,
-                generatedDocumentation.Overview,
-                generatedDocumentation.Architecture,
-                generatedDocumentation.MainFlows,
-                generatedDocumentation.Technologies,
-                generatedDocumentation.Content,
-                generatedDocumentation.Generator
-            );
-
-            await projectDocumentationRepository.AddAsync(
-                documentation,
-                cancellationToken
-            );
-
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-
-            var response = new ProjectDocumentationResponse(
-                documentation.Id,
-                documentation.ProjectId,
-                documentation.Title,
-                documentation.Overview,
-                documentation.Architecture,
-                documentation.MainFlows,
-                documentation.Technologies,
-                documentation.Content,
-                documentation.Generator,
-                documentation.CreatedAt
+            var response = new ProjectAnalysisJobResponse(
+                job.Id,
+                job.ProjectId,
+                job.Status.ToString(),
+                job.CurrentStep.ToString(),
+                job.Progress,
+                job.FilesFound,
+                job.FilesProcessed,
+                job.FilesDocumented,
+                job.ErrorMessage,
+                job.CreatedAt,
+                job.StartedAt,
+                job.FinishedAt
             );
 
             return Results.Ok(response);
@@ -690,32 +213,5 @@ public static class ProjectsEndpoints
 
             return Results.Ok(response);
         });
-
-    }
-
-    private static bool IsDocumentableExtension(string extension)
-    {
-        var documentableExtensions = new HashSet<string>(
-            StringComparer.OrdinalIgnoreCase)
-    {
-    ".cs",
-    ".csproj",
-    ".sln",
-
-    ".js",
-    ".jsx",
-    ".ts",
-    ".tsx",
-
-    ".css",
-    ".scss",
-
-    ".md",
-    ".json",
-    ".yml",
-    ".yaml"
-};
-
-        return documentableExtensions.Contains(extension);
     }
 }

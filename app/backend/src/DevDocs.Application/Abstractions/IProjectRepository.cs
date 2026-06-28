@@ -9,4 +9,6 @@ public interface IProjectRepository
     Task<List<Project>> GetAllAsync(CancellationToken cancellationToken);
 
     Task<Project?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+
+    Task<Project?> GetByGitHubUrlAsync(string githubUrl, CancellationToken cancellationToken);
 }

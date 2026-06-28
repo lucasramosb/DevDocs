@@ -27,7 +27,7 @@ public static class DependencyInjection
 
         services.AddScoped<IProjectRepository, ProjectRepository>();
         services.AddScoped<ISourceFileRepository, SourceFileRepository>();
-        services.AddScoped<IIndexingJobRepository, IndexingJobRepository>();
+        services.AddScoped<IProjectAnalysisJobRepository, ProjectAnalysisJobRepository>();
 
         services.AddScoped<IFileDocumentationRepository, FileDocumentationRepository>();
         services.AddScoped<IProjectDocumentationRepository, ProjectDocumentationRepository>();
@@ -67,17 +67,20 @@ public static class DependencyInjection
                 return await ConnectionMultiplexer.ConnectAsync(options);
             }));
 
-        services.AddScoped<IProjectFileMappingQueue, RedisProjectFileMappingQueue>();
+        services.AddSingleton<DevDocs.Application.Queue.IProjectAnalysisQueue, RedisProjectAnalysisQueue>();
 
-        services.AddScoped<
-            IFileDocumentationGenerationQueue,
-            RedisFileDocumentationGenerationQueue>();
+        var gitHubToken = configuration["GitHub:Token"];
 
         services.AddHttpClient<IGitHubRepositoryClient, GitHubRepositoryClient>(client =>
         {
             client.BaseAddress = new Uri("https://api.github.com");
             client.DefaultRequestHeaders.UserAgent.ParseAdd("DevDocs");
             client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+            
+            if (!string.IsNullOrWhiteSpace(gitHubToken))
+            {
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", gitHubToken);
+            }
         });
 
         services.AddHttpClient<IGitHubRepositoryFileClient, GitHubRepositoryFileClient>(client =>
@@ -85,6 +88,11 @@ public static class DependencyInjection
             client.BaseAddress = new Uri("https://api.github.com");
             client.DefaultRequestHeaders.UserAgent.ParseAdd("DevDocs");
             client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+
+            if (!string.IsNullOrWhiteSpace(gitHubToken))
+            {
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", gitHubToken);
+            }
         });
 
         services.AddHttpClient<IGitHubFileContentClient, GitHubFileContentClient>(client =>
@@ -92,6 +100,11 @@ public static class DependencyInjection
             client.BaseAddress = new Uri("https://api.github.com");
             client.DefaultRequestHeaders.UserAgent.ParseAdd("DevDocs");
             client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+
+            if (!string.IsNullOrWhiteSpace(gitHubToken))
+            {
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", gitHubToken);
+            }
         });
 
         return services;
