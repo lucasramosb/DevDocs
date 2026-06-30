@@ -1,86 +1,83 @@
-# DevDocs 🧠📖
-
-**DevDocs** é uma plataforma inovadora alimentada por Inteligência Artificial projetada para gerar automaticamente documentações técnicas completas para repositórios do GitHub. 
-
-O sistema analisa a estrutura do código, entende os fluxos de negócio de cada arquivo e elabora uma documentação centralizada e bem formatada, tudo isso executando **modelos de IA locais (Ollama)** para garantir máxima privacidade e zero custo com APIs externas (como OpenAI).
-
-## 🚀 Arquitetura e Tecnologias
-
-O projeto é dividido em um monorepo moderno contendo:
-
-- **Frontend (`app/frontend`)**: Next.js 15, React, Framer Motion, Tailwind CSS (Glassmorphism / UI Cibernética).
-- **Backend API (`app/backend/src/DevDocs.Api`)**: .NET 10, Entity Framework Core (SQLite). Gerencia requisições e enfileira jobs.
-- **Backend Worker (`app/backend/src/DevDocs.Worker`)**: .NET 10 (Background Service). Consome a fila, baixa arquivos do GitHub e interage com o Ollama para documentar.
-- **Fila/Mensageria**: Redis.
-- **Motor de Inteligência Artificial**: [Ollama](https://ollama.com/) (Rodando o modelo `qwen2.5-coder:1.5b`).
+<div align="center">
+  <h1>DevDocs</h1>
+  <p><b>Plataforma inteligente de documentação automatizada para repositórios GitHub, alimentada por IA Local.</b></p>
+</div>
 
 ---
 
-## 🛠️ Pré-requisitos
+O **DevDocs** é uma plataforma de engenharia reversa e documentação técnica automatizada, projetada para solucionar a falta de clareza e de especificações técnicas em repositórios de código legados, monolíticos ou complexos.
 
-Antes de iniciar, certifique-se de ter instalado em sua máquina:
+O objetivo do projeto é mapear a estrutura de repositórios GitHub públicos, analisar a lógica de negócio contida no código-fonte e gerar uma documentação legível e centralizada. Para garantir privacidade e evitar custos recorrentes com APIs de terceiros, toda a pipeline de análise é executada através de **modelos de IA locais (Ollama)**.
+
+## ✨ Funcionalidades Principais
+
+- 🔍 **Mapeamento Estrutural Profundo**: O sistema escaneia a árvore do repositório identificando os arquivos cruciais, dependências e padrões arquiteturais.
+- 🤖 **Análise de Contexto com IA Local**: Cada arquivo é analisado por um LLM rodando na sua própria máquina, garantindo que nenhum código proprietário seja vazado para nuvens públicas.
+- 📚 **Síntese de Documentação (Markdown)**: Emite um dossiê técnico rico detalhando: Visão Geral, Arquitetura, Tecnologias Utilizadas e os Fluxos Principais (Main Flows).
+- ⚡ **Processamento Assíncrono Escalonável**: O back-end utiliza mensageria (Redis) para orquestrar o download e a leitura de grandes volumes de arquivos sem bloquear o front-end.
+- 🎨 **Interface de Monitoramento em Tempo Real**: Uma UI moderna (Glassmorphism) interroga a API a cada poucos segundos para montar um "radar" de progresso, acompanhando cada etapa do worker.
+
+---
+
+## 🏗️ Arquitetura
+
+A aplicação foi estruturada utilizando padrões modernos de desenvolvimento em um monorepo, separando responsabilidades para permitir a escalabilidade:
+
+- **Frontend (`app/frontend`)**: Interface web desenvolvida em Next.js 15 e React, utilizando Tailwind CSS e Framer Motion.
+- **Backend API (`app/backend/src/DevDocs.Api`)**: Desenvolvida em .NET 10 com Entity Framework Core (SQLite). Atua como o ponto de entrada da aplicação, gerenciando o estado dos projetos e o enfileiramento dos jobs.
+- **Backend Worker (`app/backend/src/DevDocs.Worker`)**: Background Service implementado em .NET 10. Consome a fila assincronamente, gerencia downloads do GitHub e interage diretamente com o motor LLM.
+- **Mensageria**: Redis, utilizado para comunicação confiável e distribuição da carga entre API e Worker.
+- **Motor de IA Local**: Integração com [Ollama](https://ollama.com/) (otimizado e testado utilizando o modelo `qwen2.5-coder:1.5b`).
+
+---
+
+## ⚙️ Setup e Execução
+
+### Pré-requisitos
 - **.NET 10 SDK**
 - **Node.js** (v18+) e **npm**
-- **Docker** (para rodar o Redis)
-- **Ollama**: Faça o download em `ollama.com` e rode o comando: `ollama run qwen2.5-coder:1.5b` (ou altere o modelo nas configurações).
+- **Docker** (para a instância do Redis)
+- **Ollama** em execução local (`ollama run qwen2.5-coder:1.5b`)
 
----
+### 1. Token de Acesso do GitHub
+Para prevenir bloqueios de Rate Limit ao consumir a API pública do GitHub, o sistema requer um Personal Access Token (PAT).
 
-## ⚙️ Configuração (Setup)
-
-### 1. Configurando o Token do GitHub
-Para evitar o erro de `Rate Limit` (403 Forbidden) da API pública do GitHub, você deve fornecer um **Personal Access Token (PAT)**.
-1. Gere um token no GitHub (Developer Settings -> Personal Access Tokens). Não são necessários escopos se for ler apenas repositórios públicos.
-2. Adicione o token no arquivo `appsettings.json` tanto da **API** quanto do **Worker** (`app/backend/src/DevDocs.Api/appsettings.json` e `app/backend/src/DevDocs.Worker/appsettings.json`):
-
+Crie um arquivo chamado `appsettings.Local.json` na raiz da API (`app/backend/src/DevDocs.Api/`) e do Worker (`app/backend/src/DevDocs.Worker/`):
 ```json
+{
   "GitHub": {
     "Token": "ghp_SEU_TOKEN_AQUI"
   }
+}
 ```
+*(Nota: O arquivo `appsettings.Local.json` já é ignorado pelo `.gitignore` para prevenir o vazamento de credenciais).*
 
-### 2. Subindo as Dependências (Redis)
-Na raiz do projeto (onde está o `docker-compose.yml`), inicie o Redis:
+### 2. Infraestrutura
+Na raiz do repositório, inicialize o contêiner do Redis:
 ```bash
 docker-compose up -d
 ```
 
-### 3. Rodando o Backend (API e Worker)
+### 3. Backend e Processamento
 Em um terminal, inicie a API:
 ```bash
 cd app/backend/src/DevDocs.Api
 dotnet run
 ```
-A API estará rodando em `http://localhost:5150`.
-
-Em um segundo terminal, inicie o Worker (responsável por consumir a fila e falar com a IA):
+Em outro terminal, inicie o Worker responsável pelo processamento de IA:
 ```bash
 cd app/backend/src/DevDocs.Worker
 dotnet run
 ```
 
-### 4. Rodando o Frontend
-Em um terceiro terminal, inicie a interface de usuário:
+### 4. Frontend
+Para interagir com a plataforma, inicialize a aplicação client:
 ```bash
 cd app/frontend
 npm install
 npm run dev
 ```
-O Frontend estará rodando em `http://localhost:3000`.
+Acesse `http://localhost:3000` em seu navegador.
 
 ---
-
-## 🎮 Como Usar
-
-1. Acesse `http://localhost:3000` em seu navegador.
-2. Na tela inicial magnética, cole a URL de qualquer repositório público do GitHub (ex: `https://github.com/owner/repo`).
-3. Clique em **Iniciar**.
-4. Você será levado para a **Tela de Progresso (Radar de Análise)**. Lá, você verá o sistema mapeando os arquivos, baixando o conteúdo e o Worker enviando tudo para o Ollama documentar.
-5. Quando o status mudar para *Concluído*, a **Visão da Documentação** abrirá renderizando o conteúdo em um Markdown rico com syntax highlighting, tabelas e explicações da arquitetura.
-
-## ⚠️ Limpeza de Dados (Reset)
-Caso enfrente problemas ou queira limpar todo o banco de dados e recomeçar do zero:
-- Pare a API e o Worker.
-- Delete o arquivo `app/backend/devdocs.db` (SQLite).
-- Limpe a fila do redis executando: `docker-compose down -v`.
-- Inicie tudo novamente. A migração do banco (no `.NET`) será feita automaticamente pela API.
+**Desenvolvido por Lucas Ramos**
