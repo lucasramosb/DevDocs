@@ -1,48 +1,127 @@
 <div align="center">
   <h1>DevDocs</h1>
-  <p><b>Plataforma inteligente de documentação automatizada para repositórios GitHub, alimentada por IA Local.</b></p>
+  <p><b>Projeto para análise e documentação automática de repositórios GitHub utilizando Inteligência Artificial.</b></p>
 </div>
 
 ---
 
-O **DevDocs** é uma plataforma de engenharia reversa e documentação técnica automatizada, projetada para solucionar a falta de clareza e de especificações técnicas em repositórios de código legados, monolíticos ou complexos.
+O **DevDocs** é um projeto desenvolvido para automatizar a análise e a documentação técnica de projetos de software hospedados no GitHub.
 
-O objetivo do projeto é mapear a estrutura de repositórios GitHub públicos, analisar a lógica de negócio contida no código-fonte e gerar uma documentação legível e centralizada. Para garantir privacidade e evitar custos recorrentes com APIs de terceiros, toda a pipeline de análise é executada através de **modelos de IA locais (Ollama)**.
+A proposta é permitir que qualquer desenvolvedor informe apenas a URL de um repositório público e obtenha uma documentação completa gerada automaticamente, reduzindo o tempo necessário para compreender sistemas legados, monólitos ou projetos sem documentação.
 
-## ✨ Funcionalidades Principais
+Durante o processamento, o projeto identifica a estrutura do repositório, seleciona os arquivos relevantes, analisa seu conteúdo utilizando Inteligência Artificial e gera documentações individuais para cada arquivo, além de uma documentação consolidada contendo visão geral, arquitetura, tecnologias utilizadas e principais fluxos do sistema.
 
-- 🔍 **Mapeamento Estrutural Profundo**: O sistema escaneia a árvore do repositório identificando os arquivos cruciais, dependências e padrões arquiteturais.
-- 🤖 **Análise de Contexto com IA Local**: Cada arquivo é analisado por um LLM rodando na sua própria máquina, garantindo que nenhum código proprietário seja vazado para nuvens públicas.
-- 📚 **Síntese de Documentação (Markdown)**: Emite um dossiê técnico rico detalhando: Visão Geral, Arquitetura, Tecnologias Utilizadas e os Fluxos Principais (Main Flows).
-- ⚡ **Processamento Assíncrono Escalonável**: O back-end utiliza mensageria (Redis) para orquestrar o download e a leitura de grandes volumes de arquivos sem bloquear o front-end.
-- 🎨 **Interface de Monitoramento em Tempo Real**: Uma UI moderna (Glassmorphism) interroga a API a cada poucos segundos para montar um "radar" de progresso, acompanhando cada etapa do worker.
+Todo o processamento é executado localmente através do **Ollama**, garantindo privacidade dos dados, independência de serviços externos e a possibilidade de utilizar diferentes modelos de IA sem alterar a arquitetura da aplicação.
+
+Além da geração automática de documentação, o DevDocs também tem como objetivo servir como projeto de estudo para tecnologias modernas de desenvolvimento Full Stack, explorando conceitos como **Clean Architecture**, **Entity Framework Core**, **Redis**, **Workers**, **GitHub API**, **processamento assíncrono** e **Integração com Inteligência Artificial**.
+
+## ✨ Funcionalidades
+
+* 📥 **Importação de Repositórios GitHub**: Recebe a URL de um repositório público, valida sua existência e obtém automaticamente suas informações.
+* 🔍 **Mapeamento Inteligente de Arquivos**: Percorre toda a estrutura do projeto identificando apenas arquivos relevantes para análise, ignorando diretórios temporários e arquivos desnecessários.
+* 🤖 **Análise Automatizada com IA Local**: Cada arquivo é enviado para um modelo de IA executado localmente através do Ollama, responsável por interpretar o código e gerar uma documentação técnica.
+* 📄 **Documentação por Arquivo**: Gera documentação individual contendo responsabilidade, funcionamento, dependências e observações importantes de cada arquivo analisado.
+* 📚 **Documentação Geral do Projeto**: Consolida todas as análises em uma documentação única contendo visão geral, arquitetura, tecnologias utilizadas, organização do projeto e principais fluxos.
+* ⚡ **Processamento Assíncrono**: Utiliza filas com Redis e Workers para executar tarefas pesadas em background, permitindo o processamento de grandes repositórios sem bloquear a API.
+* 🔄 **Arquitetura Extensível**: O sistema foi desenvolvido para permitir a adição de novas linguagens, modelos de IA e provedores de repositórios sem grandes alterações na arquitetura.
 
 ---
 
 ## 🏗️ Arquitetura
 
-A aplicação foi estruturada utilizando padrões modernos de desenvolvimento em um monorepo, separando responsabilidades para permitir a escalabilidade:
+O projeto está organizado em um **Monorepo**, separando frontend e backend para facilitar manutenção, escalabilidade e evolução da aplicação.
 
-- **Frontend (`app/frontend`)**: Interface web desenvolvida em Next.js 15 e React, utilizando Tailwind CSS e Framer Motion.
-- **Backend API (`app/backend/src/DevDocs.Api`)**: Desenvolvida em .NET 10 com Entity Framework Core (SQLite). Atua como o ponto de entrada da aplicação, gerenciando o estado dos projetos e o enfileiramento dos jobs.
-- **Backend Worker (`app/backend/src/DevDocs.Worker`)**: Background Service implementado em .NET 10. Consome a fila assincronamente, gerencia downloads do GitHub e interage diretamente com o motor LLM.
-- **Mensageria**: Redis, utilizado para comunicação confiável e distribuição da carga entre API e Worker.
-- **Motor de IA Local**: Integração com [Ollama](https://ollama.com/) (otimizado e testado utilizando o modelo `qwen2.5-coder:1.5b`).
+### Frontend (`app/frontend`)
+
+Aplicação web desenvolvida com:
+
+* Next.js
+* React
+* TypeScript
+* Tailwind CSS
+
+Responsável pela interação do usuário, acompanhamento do processamento e visualização da documentação gerada.
+
+### Backend API (`app/backend/src/DevDocs.Api`)
+
+Desenvolvida em **.NET 10** utilizando **ASP.NET Core Minimal API**.
+
+Responsável por:
+
+* gerenciamento dos projetos;
+* validação dos repositórios GitHub;
+* persistência dos dados;
+* disponibilização da API;
+* criação dos Jobs de processamento.
+
+### Backend Worker (`app/backend/src/DevDocs.Worker`)
+
+Serviço executado em background responsável por todo o processamento pesado da aplicação.
+
+Entre suas responsabilidades estão:
+
+* consumir filas Redis;
+* acessar a API do GitHub;
+* mapear os arquivos do repositório;
+* obter o conteúdo dos arquivos;
+* enviar os arquivos para a IA;
+* gerar e persistir as documentações.
+
+### Banco de Dados
+
+Durante o desenvolvimento é utilizado:
+
+* SQLite
+
+A arquitetura foi preparada para migração futura para:
+
+* PostgreSQL
+
+### Mensageria
+
+O Redis é utilizado para comunicação entre API e Workers, permitindo o processamento assíncrono das análises.
+
+### Inteligência Artificial
+
+A geração da documentação é realizada através do **Ollama**, permitindo utilizar modelos locais como:
+
+* Qwen
+* Gemma
+* DeepSeek
+* Llama
+
+A implementação foi desacoplada para facilitar futuras integrações com outros provedores de IA.
 
 ---
 
 ## ⚙️ Setup e Execução
 
 ### Pré-requisitos
-- **.NET 10 SDK**
-- **Node.js** (v18+) e **npm**
-- **Docker** (para a instância do Redis)
-- **Ollama** em execução local (`ollama run qwen2.5-coder:1.5b`)
 
-### 1. Token de Acesso do GitHub
-Para prevenir bloqueios de Rate Limit ao consumir a API pública do GitHub, o sistema requer um Personal Access Token (PAT).
+* .NET 10 SDK
+* Node.js 18+
+* Docker
+* Ollama
+* Git
 
-Crie um arquivo chamado `appsettings.Local.json` na raiz da API (`app/backend/src/DevDocs.Api/`) e do Worker (`app/backend/src/DevDocs.Worker/`):
+### 1. Configurar Token do GitHub
+
+Para evitar limitações de requisições da API pública do GitHub, configure um **Personal Access Token (PAT)**.
+
+Crie um arquivo chamado **`appsettings.Local.json`** em:
+
+```text
+app/backend/src/DevDocs.Api/
+```
+
+e
+
+```text
+app/backend/src/DevDocs.Worker/
+```
+
+com o conteúdo:
+
 ```json
 {
   "GitHub": {
@@ -50,34 +129,61 @@ Crie um arquivo chamado `appsettings.Local.json` na raiz da API (`app/backend/sr
   }
 }
 ```
-*(Nota: O arquivo `appsettings.Local.json` já é ignorado pelo `.gitignore` para prevenir o vazamento de credenciais).*
 
-### 2. Infraestrutura
-Na raiz do repositório, inicialize o contêiner do Redis:
-```bash
-docker-compose up -d
-```
-
-### 3. Backend e Processamento
-Em um terminal, inicie a API:
-```bash
-cd app/backend/src/DevDocs.Api
-dotnet run
-```
-Em outro terminal, inicie o Worker responsável pelo processamento de IA:
-```bash
-cd app/backend/src/DevDocs.Worker
-dotnet run
-```
-
-### 4. Frontend
-Para interagir com a plataforma, inicialize a aplicação client:
-```bash
-cd app/frontend
-npm install
-npm run dev
-```
-Acesse `http://localhost:3000` em seu navegador.
+> O arquivo `appsettings.Local.json` é ignorado pelo `.gitignore`, evitando que credenciais sejam enviadas para o repositório.
 
 ---
+
+### 2. Iniciar a infraestrutura
+
+Suba o Redis utilizando Docker:
+
+```bash
+docker compose up -d
+```
+
+---
+
+### 3. Executar a API
+
+```bash
+cd app/backend
+
+dotnet run --project src/DevDocs.Api
+```
+
+---
+
+### 4. Executar o Worker
+
+Em outro terminal:
+
+```bash
+cd app/backend
+
+dotnet run --project src/DevDocs.Worker
+```
+
+---
+
+### 5. Executar o Frontend
+
+```bash
+cd app/frontend
+
+npm install
+
+npm run dev
+```
+
+A aplicação estará disponível em:
+
+```text
+http://localhost:3000
+```
+
+<div align="center">
+
 **Desenvolvido por Lucas Ramos**
+
+</div>
